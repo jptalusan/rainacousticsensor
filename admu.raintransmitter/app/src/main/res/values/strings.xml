@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Transmitter</string>
+    
+    <!-- SensorTransmitter Activity -->
+    <string name="title">Rain Transmitter</string>
+    <string name="soundnull">Sound : -1 dB</string>
+    <string name="on">MODULE OPERATING</string>
+    <string name="off">MODULE OFF</string>
+
+</resources>

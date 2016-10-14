@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <issue id="SimpleDateFormat">
+        <ignore path="src/admu/blackboxreceiver/main/BlackBoxReceiverActivity.java" />
+    </issue>
+    <issue id="Wakelock">
+        <ignore path="src/admu/blackboxreceiver/main/SensorReceiverActivity.java" />
+        <ignore path="src/admu/rainreceiver/main/RainReceiverActivity.java" />
+        <ignore path="src/admu/sensorreceiver/main/SensorReceiverActivity.java" />
+    </issue>
+</lint>

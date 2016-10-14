@@ -1,0 +1,194 @@
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    
+    <LinearLayout 
+    	android:layout_width="match_parent"
+    	android:layout_height="wrap_content"
+    	android:orientation="vertical" >
+    	
+        <TextView
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:layout_gravity="center_horizontal"
+	        android:layout_marginTop="10dp"
+	        android:text="@string/title"
+	        android:textSize="28sp"
+	        android:textStyle="bold" />
+        
+        <TextView
+            android:id="@+id/id_rows_buffer"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="center_horizontal"
+		    android:layout_marginTop="10dp"
+		    android:text="@string/empty"
+		    android:textSize="20sp"
+		    android:textStyle="bold" />
+        
+        <TextView
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="center_horizontal"
+		    android:layout_marginTop="10dp"
+		    android:text="@string/rain1"
+		    android:textSize="23sp"
+		    android:textStyle="bold|italic" />
+    	
+	    <TextView
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="center_horizontal"
+		    android:layout_marginTop="5dp"
+		    android:text="@string/received"
+		    android:textSize="18sp"
+		    android:textStyle="bold|italic" />
+	    
+	    <TextView
+	        android:id="@+id/id_rain1_received"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:layout_gravity="center_horizontal"
+	        android:gravity="center"
+	        android:text="@string/empty"
+	        android:textSize="16sp" />
+	    
+	    <TextView
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="center_horizontal"
+		    android:layout_marginTop="5dp"
+		    android:text="@string/saved"
+		    android:textSize="18sp"
+		    android:textStyle="bold|italic" />
+	    
+	    <TextView
+	        android:id="@+id/id_rain1_server1_saved"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:layout_gravity="center_horizontal"
+	        android:gravity="center"
+	        android:text="@string/empty"
+	        android:textSize="16sp" />
+	    
+	    <TextView
+	        android:id="@+id/id_rain1_server2_saved"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:layout_gravity="center_horizontal"
+	        android:gravity="center"
+	        android:text="@string/empty"
+	        android:textSize="16sp" />
+	    
+	    <TextView
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="center_horizontal"
+		    android:layout_marginTop="20dp"
+		    android:text="@string/rain2"
+		    android:textSize="23sp"
+		    android:textStyle="bold|italic" />
+    	
+	    <TextView
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="center_horizontal"
+		    android:layout_marginTop="5dp"
+		    android:text="@string/received"
+		    android:textSize="18sp"
+		    android:textStyle="bold|italic" />
+	    
+	    <TextView
+	        android:id="@+id/id_rain2_received"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:layout_gravity="center_horizontal"
+	        android:gravity="center"
+	        android:text="@string/empty"
+	        android:textSize="16sp" />
+	    
+	    <TextView
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="center_horizontal"
+		    android:layout_marginTop="5dp"
+		    android:text="@string/saved"
+		    android:textSize="18sp"
+		    android:textStyle="bold|italic" />
+	    
+	    <TextView
+	        android:id="@+id/id_rain2_server1_saved"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:layout_gravity="center_horizontal"
+	        android:gravity="center"
+	        android:text="@string/empty"
+	        android:textSize="16sp" />
+	    
+	    <TextView
+	        android:id="@+id/id_rain2_server2_saved"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:layout_gravity="center_horizontal"
+	        android:gravity="center"
+	        android:text="@string/empty"
+	        android:textSize="16sp" />
+	    
+	    <TextView
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="center_horizontal"
+		    android:layout_marginTop="20dp"
+		    android:text="@string/rain3"
+		    android:textSize="23sp"
+		    android:textStyle="bold|italic" />
+    	
+	    <TextView
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="center_horizontal"
+		    android:layout_marginTop="5dp"
+		    android:text="@string/received"
+		    android:textSize="18sp"
+		    android:textStyle="bold|italic" />
+	    
+	    <TextView
+	        android:id="@+id/id_rain3_received"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:layout_gravity="center_horizontal"
+	        android:gravity="center"
+	        android:text="@string/empty"
+	        android:textSize="16sp" />
+	    
+	    <TextView
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:layout_gravity="center_horizontal"
+		    android:layout_marginTop="5dp"
+		    android:text="@string/saved"
+		    android:textSize="18sp"
+		    android:textStyle="bold|italic" />
+	    
+	    <TextView
+	        android:id="@+id/id_rain3_server1_saved"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:layout_gravity="center_horizontal"
+	        android:gravity="center"
+	        android:text="@string/empty"
+	        android:textSize="16sp" />
+	    
+	    <TextView
+	        android:id="@+id/id_rain3_server2_saved"
+	        android:layout_width="wrap_content"
+	        android:layout_height="wrap_content"
+	        android:layout_gravity="center_horizontal"
+	        android:gravity="center"
+	        android:text="@string/empty"
+	        android:textSize="16sp" />
+	    
+	</LinearLayout>
+</ScrollView>

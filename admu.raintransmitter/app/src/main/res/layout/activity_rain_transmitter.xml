@@ -1,0 +1,43 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+    
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="50dp"
+        android:text="Rain Transmitter"
+        android:textSize="26sp"
+        android:textStyle="bold" />
+    
+    <TextView
+        android:id="@+id/id_test"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="10dp"
+        android:textSize="18sp"/>
+
+    <TextView
+        android:id="@+id/mode_textview"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:text="Transmission Mode: OFF"
+        android:layout_marginTop="80dp"
+        android:textSize="26sp"/>
+
+     <TextView
+        android:id="@+id/status_textview"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="110dp"
+        android:text="MODULE OFF"
+        android:textSize="28sp"
+        android:textStyle="bold"/>
+
+</LinearLayout>

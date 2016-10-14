@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<lint>
+    <issue id="HandlerLeak">
+        <ignore path="src/admu/raintransmitter/main/RainTransmitterActivity.java" />
+    </issue>
+    <issue id="Wakelock">
+        <ignore path="src/admu/raintransmitter/main/RainTransmitterActivity.java" />
+    </issue>
+</lint>

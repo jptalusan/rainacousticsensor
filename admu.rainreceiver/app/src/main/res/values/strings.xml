@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Android Manifest -->
+    <string name="app_name">Receiver</string>
+    
+    <!-- SensorReceiver Activity -->
+    <string name="title">Rain Receiver</string>
+    <string name="rain1">Sensor 1</string>
+    <string name="rain2">Sensor 2 (CTC)</string>
+    <string name="rain3">Sensor 3 (TAN)</string>
+    <string name="received">Last Reception</string>
+    <string name="saved">Last Upload</string>
+    <string name="empty">null</string>
+
+</resources>
