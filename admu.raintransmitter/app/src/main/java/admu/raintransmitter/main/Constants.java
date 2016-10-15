@@ -1,5 +1,6 @@
 package admu.raintransmitter.main;
 
+import android.media.AudioFormat;
 import android.os.Environment;
 
 import java.io.File;
@@ -28,6 +29,7 @@ public class Constants {
     // for SMART private String serverNumber ="", monitorNumber = "";
     // for GLOBE
     public static String MONITOR_NUM_KEY = "MONITOR_NUM";
+    public static String SERVER_NUM_KEY = "SERVER_NUM";
     public static String serverNumber ="+639059716422";
     public static String monitorNumber = "+639059716422";
     public static double THRESHOLD_START = -20.0f;
@@ -39,4 +41,10 @@ public class Constants {
     public static String gsm = "GSM";
     public static String test = "TEST";
     static String logFile = "log.txt";
+
+    // Recorder Thread
+    static int channelConfiguration = AudioFormat.CHANNEL_IN_MONO;
+    static int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
+    static int sampleRate = 44100; //44100;
+    static int frameByteSize = 2048; // for 1024 fft size (16bit sample size)
 }

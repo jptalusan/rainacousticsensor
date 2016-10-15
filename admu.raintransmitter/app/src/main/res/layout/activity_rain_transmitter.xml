@@ -8,7 +8,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:layout_marginTop="50dp"
+        android:layout_marginTop="40dp"
         android:text="Rain Transmitter"
         android:textSize="26sp"
         android:textStyle="bold" />
@@ -27,7 +27,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:text="Transmission Mode: OFF"
-        android:layout_marginTop="80dp"
+        android:layout_marginTop="40dp"
         android:textSize="26sp"/>
 
      <TextView
@@ -35,7 +35,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:layout_marginTop="110dp"
+        android:layout_marginTop="80dp"
         android:text="MODULE OFF"
         android:textSize="28sp"
         android:textStyle="bold"/>
@@ -48,6 +48,7 @@
         android:id="@+id/textView"
         android:textSize="28sp"
         android:textStyle="bold"
+        android:layout_marginTop="20dp"
         android:layout_gravity="center_horizontal" />
 
     <EditText
@@ -56,6 +57,36 @@
         android:inputType="phone"
         android:ems="10"
         android:id="@+id/etMonitorNumber"
+        android:hint="Please enter monitor mobile number"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:layout_gravity="center_horizontal" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceLarge"
+        android:text="Server Phone Number"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:layout_gravity="center_horizontal" />
+
+    <EditText
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="phone"
+        android:ems="10"
+        android:id="@+id/etServerNumber"
+        android:textSize="28sp"
+        android:hint="Please enter server mobile number"
+        android:textStyle="bold"
+        android:layout_gravity="center_horizontal" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Save"
+        android:id="@+id/bSave"
         android:textSize="28sp"
         android:textStyle="bold"
         android:layout_gravity="center_horizontal" />

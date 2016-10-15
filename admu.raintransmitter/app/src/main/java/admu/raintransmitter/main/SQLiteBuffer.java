@@ -52,6 +52,11 @@ public class SQLiteBuffer {
         return (c.getCount());
     }
 
+    /**
+     * Returns the first row of the rows of a certain priority. Used after getNumberRows()
+     * @param priority
+     * @return result[]: id, number, message, priority
+     */
     public String[] getFirstRow(String priority){
         Cursor c = db.rawQuery("SELECT * FROM " + TABLE_BUFFER + " WHERE " + COLpriority + " = '" + priority + "' ORDER BY id ASC LIMIT 1", null);
         String[] result = new String[4];

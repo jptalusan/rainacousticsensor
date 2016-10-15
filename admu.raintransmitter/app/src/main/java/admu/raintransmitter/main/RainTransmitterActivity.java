@@ -17,6 +17,8 @@ import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.RemoteException;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -41,6 +43,8 @@ public class RainTransmitterActivity extends Activity {
     private static TextView status = null;
     private static TextView mode = null;
     private static EditText etMonitorNumber = null;
+    private static EditText etServerNumber = null;
+    private static Button bSave = null;
     
     // Handler gets created on the UI-thread
     private Handler mHandler = new Handler();
@@ -48,11 +52,17 @@ public class RainTransmitterActivity extends Activity {
     private PowerManager pm;
     private PowerManager.WakeLock wakeLock;
 
+    private SharedPreferences sharedPref;
+    private SharedPreferences.Editor editor;
+
+    //TODO: Add button to save the edit text items for monitor and server number
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_rain_transmitter);
 
+        sharedPref = this.getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE);
+        editor = sharedPref.edit();
         // check or create the folder
         boolean wasCreated = Constants.SDLINK.mkdirs();
         try {
@@ -67,11 +77,20 @@ public class RainTransmitterActivity extends Activity {
         status = (TextView)findViewById(R.id.status_textview);
         mode = (TextView)findViewById(R.id.mode_textview);
         etMonitorNumber = (EditText)findViewById(R.id.etMonitorNumber);
+        etServerNumber = (EditText)findViewById(R.id.etServerNumber);
+        bSave = (Button)findViewById(R.id.bSave);
 
-        SharedPreferences sharedPref = this.getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPref.edit();
-        editor.putString(etMonitorNumber.getText().toString(), Constants.MONITOR_NUM_KEY);
-        editor.apply();
+        etMonitorNumber.setText(sharedPref.getString(Constants.MONITOR_NUM_KEY, ""));
+        etServerNumber.setText(sharedPref.getString(Constants.SERVER_NUM_KEY, ""));
+
+        bSave.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                editor.putString(Constants.MONITOR_NUM_KEY, etMonitorNumber.getText().toString()).apply();
+                editor.putString(Constants.SERVER_NUM_KEY, etServerNumber.getText().toString()).apply();
+                Toast.makeText(getApplicationContext(), "Saved", Toast.LENGTH_SHORT).show();
+            }
+        });
 
         startService(new Intent(RainTransmitterActivity.this, RainTransmitterService.class));
         doBindService();

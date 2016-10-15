@@ -1,6 +1,5 @@
 package admu.raintransmitter.main;
 
-import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.util.Log;
@@ -9,17 +8,20 @@ public class RecorderThread extends Thread {
 
     private AudioRecord audioRecord;
     private boolean isRecording;
-    private int channelConfiguration = AudioFormat.CHANNEL_IN_MONO;
-    private int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
-    private int sampleRate = 44100; //44100;
-    private int frameByteSize = 2048; // for 1024 fft size (16bit sample size)
     private byte[] buffer;
     private double mRmsSmoothed = 0;
 
     public RecorderThread(){
-        int recBufSize = AudioRecord.getMinBufferSize(sampleRate, channelConfiguration, audioEncoding); // need to be larger than size of a frame
-        audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, sampleRate, channelConfiguration, audioEncoding, recBufSize);
-        buffer = new byte[frameByteSize];
+        int recBufSize = AudioRecord.getMinBufferSize(
+                Constants.sampleRate,
+                Constants.channelConfiguration,
+                Constants.audioEncoding); // need to be larger than size of a frame
+        audioRecord = new AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                Constants.sampleRate,
+                Constants.channelConfiguration,
+                Constants.audioEncoding, recBufSize);
+        buffer = new byte[Constants.frameByteSize];
     }
 
     public boolean isRecording(){
@@ -43,7 +45,7 @@ public class RecorderThread extends Thread {
     }
 
     public double getPower(){
-        audioRecord.read(buffer, 0, frameByteSize);
+        audioRecord.read(buffer, 0, Constants.frameByteSize);
         /*
          * Noise level meter begins here
          */

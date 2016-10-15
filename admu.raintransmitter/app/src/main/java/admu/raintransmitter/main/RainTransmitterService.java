@@ -77,6 +77,7 @@ public class RainTransmitterService extends Service {
     private long currentTime;
     private long stopTime;
     private String monitorNumber = "";
+    private String serverNumber = "";
 
     private static final DecimalFormat ftRmsDb = new DecimalFormat("0.00");
     private static final SimpleDateFormat hms = new SimpleDateFormat("HH:mm:ss", Locale.ENGLISH);
@@ -89,6 +90,7 @@ public class RainTransmitterService extends Service {
 
         SharedPreferences sharedPref = getApplicationContext().getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE);
         monitorNumber = sharedPref.getString(Constants.MONITOR_NUM_KEY, "");
+        serverNumber = sharedPref.getString(Constants.SERVER_NUM_KEY, "");
 
         pm = (PowerManager)getSystemService(Context.POWER_SERVICE);
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, Constants.WAKELOCK);
@@ -126,6 +128,8 @@ public class RainTransmitterService extends Service {
         if (loggerTimer != null) stopLoggerTimer();
         telephonyManager.listen(mySSListener, PhoneStateListener.LISTEN_NONE);
         recorderThread.stop();
+        backup.closeDatabase();
+        buffer.closeDatabase();
         super.onDestroy();
     }
 
@@ -167,6 +171,11 @@ public class RainTransmitterService extends Service {
         }
     }
 
+    /**
+     * Sends SMS to number in buffer row: String number, String message, String priority
+     * deletes the row from the buffer once sent.
+     * @param row Buffer row: [0] id, [1] String number, [2] String message, [3] String priority
+     */
     private void sendSMS(final String[] row) {
         String SENT = "SMS_SENT";
         PendingIntent sentPI = PendingIntent.getBroadcast(this, 0, new Intent(SENT), 0);
@@ -197,6 +206,11 @@ public class RainTransmitterService extends Service {
         }
     }
 
+    /**
+     * Returns battery level
+     * TODO: Must handle the possible null pointer exceptions
+     * @return
+     */
     private int getBatteryLevel() {
         IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
         batteryStatus = this.registerReceiver(null, ifilter);
@@ -260,6 +274,7 @@ public class RainTransmitterService extends Service {
         }
 
         if (data[1].equals(Constants.wifi)) {
+            //debug
             startLoggerTimer();
             startModeTimer();
             InitializeTime();
@@ -275,6 +290,11 @@ public class RainTransmitterService extends Service {
         }
     }
 
+    /**
+     * Starts the recording of RecorderThread
+     * get sound and signal data and save to csv file
+     * Why is this only for WIFI and not GSM?
+     */
     public void  startModeTimer() {
         samplerTimer = null;
         samplerTimer = new Timer();
@@ -324,6 +344,9 @@ public class RainTransmitterService extends Service {
                 , 0, Constants.SAMPLER_INTERVAL);
     }
 
+    /**
+     * Why is this the only one with process and Send? Why not GSM?
+     */
     public void startSamplerTimer(){
         samplerTimer = null;
         samplerTimer = new Timer();
@@ -403,9 +426,11 @@ public class RainTransmitterService extends Service {
     }
 
     /**
-     * ProcessandSend
+     * Saves the sound and signal arguments into both backup and buffer sqliteDBs
      * TODO: Should be in it's own class
      * TODO: Figure out what to is being done with the server number
+     * buffer receives the ff msg format: servernumber, msg (concatenated), priority (2)
+     * backup receives the ff msg format: # + SENSOR.NUM + sound[5] + signal[5] + distribution of sound[10]
      * @param sound
      * @param signal
      */
@@ -435,7 +460,9 @@ public class RainTransmitterService extends Service {
         for (int i = 0; i < 10; i++) {
             double k = Constants.THRESHOLD_START + i * Constants.THRESHOLD_STEP;
             for (int j = 0; j < Constants.SAMPLES; j++) {
-                if (sound[j] >=  k) dis[i]++;
+                if (sound[j] >=  k) {
+                    dis[i]++;
+                }
             }
         }
 
@@ -443,11 +470,21 @@ public class RainTransmitterService extends Service {
         SimpleDateFormat ft =  new SimpleDateFormat ("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH);
         String msg = "#" + Constants.SENSOR + ";";
         msg += ft.format(new Date()) + ";";
-        for (int i = 0; i < 5; i++) msg += (ftRmsDb.format(snd[i]) + ",");
+        for (int i = 0; i < 5; i++) {
+            msg += (ftRmsDb.format(snd[i]) + ",");
+        }
+
         msg += ftRmsDb.format(snd[5]) + ";";
-        for (int i = 0; i < 5; i++) msg += (ftRmsDb.format(sig[i]) + ",");
+
+        for (int i = 0; i < 5; i++) {
+            msg += (ftRmsDb.format(sig[i]) + ",");
+        }
+
         msg += ftRmsDb.format(sig[5]) + ";";
-        for (int i = 0; i < 9; i++) msg += (String.valueOf(dis[i]) + ",");
+
+        for (int i = 0; i < 9; i++) {
+            msg += (String.valueOf(dis[i]) + ",");
+        }
         msg += (String.valueOf(dis[9]) + ";#");
 
         Log.d("RainSensor", msg);
@@ -495,11 +532,18 @@ public class RainTransmitterService extends Service {
                 final SmsMessage[] messages = new SmsMessage[pdus.length];
                 for (int i = 0; i < pdus.length; i++) {
                     messages[i] = SmsMessage.createFromPdu((byte[]) pdus[i]);
-                    String body = messages[i].getMessageBody().toString();
+                    String body = messages[i].getMessageBody();
                     String number = messages[i].getOriginatingAddress();
                     // check the msg
+//                    //DEBUGGING
+//                    body = "Start-WIFI";
+//                    number = monitorNumber;
+//                    //END DEBUG
                     String[] data = body.split("-");
-                    if (number.equals(monitorNumber) && data[0].equals("Start") || data[0].equals("START") || data[0].equals("start")) {
+                    if (data.length <= 0) {
+                        this.abortBroadcast();
+                    }
+                    if (number.equals(monitorNumber) && data[0].toLowerCase().equals("start")) {
                         display("Processing SMS...");
                         buffer.truncateTable();
                         SimpleDateFormat ft =  new SimpleDateFormat ("HH:mm:ss", Locale.ENGLISH);
@@ -507,7 +551,7 @@ public class RainTransmitterService extends Service {
                         messageAnalysis(data);
                         this.abortBroadcast();
                     }
-                    if (number.equals(monitorNumber) && data[0].equals("STOP") || data[0].equals("Stop") || data[0].equals("stop")) {
+                    if (number.equals(monitorNumber) && data[0].toLowerCase().equals("stop")) {
                         display("Processing SMS...");
                         buffer.insertRow(monitorNumber, (Constants.SENSOR + " here, I don't record anymore :)"), "1");
                         isRecording = false;
@@ -516,13 +560,13 @@ public class RainTransmitterService extends Service {
                         sendMessageToUI(Constants.MSG_SET_STATUS_OFF, "");
                         this.abortBroadcast();
                     }
-                    if (data[0].equals("TRUNCATE") || data[0].equals("Truncate") || data[0].equals("truncate")) {
-                        if (data[1].equals("BUFFER") || data[1].equals("Buffer") || data[1].equals("buffer")) {
+                    if (data[0].equals("TRUNCATE") || data[0].toLowerCase().equals("truncate")) {
+                        if (data[1].equals("BUFFER") || data[1].toLowerCase().equals("buffer")) {
                             buffer.truncateTable();
                             buffer.insertRow(monitorNumber, (Constants.SENSOR + " here, I'll reset the buffer table :)"), "1");
                             this.abortBroadcast();
                         }
-                        if (data[1].equals("BACKUP") || data[1].equals("Backup") || data[1].equals("backup")) {
+                        if (data[1].equals("BACKUP") || data[1].toLowerCase().equals("backup")) {
                             backup.truncateTable();
                             buffer.insertRow(monitorNumber, (Constants.SENSOR + " here, I'll reset the backup table :)"), "1");
                             this.abortBroadcast();
