@@ -8,6 +8,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -15,119 +16,160 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.RemoteException;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
 public class RainReceiverActivity extends Activity {
 
-	private TextView received_rain1, saved_rain1_server1 = null, saved_rain1_server2 = null;
-	private TextView received_rain2, saved_rain2_server1 = null, saved_rain2_server2 = null;
-	private TextView received_rain3, saved_rain3_server1 = null, saved_rain3_server2 = null;
-	private TextView rows_buffer = null;
-	
-	private PowerManager pm;
+    private TextView received_rain1, saved_rain1_server1 = null, saved_rain1_server2 = null;
+    private TextView received_rain2, saved_rain2_server1 = null, saved_rain2_server2 = null;
+    private TextView received_rain3, saved_rain3_server1 = null, saved_rain3_server2 = null;
+    private TextView rows_buffer = null;
+    private EditText etSensor1, etSensor2, etSensor3, etServer, etMonitor;
+    private Button bSave;
+
+    private PowerManager pm;
     private PowerManager.WakeLock wakeLock;
-	
-	Messenger mService = null;
+
+    Messenger mService = null;
     public boolean mIsBound;
     final Messenger mMessenger = new Messenger(new IncomingHandler());
 
-	@Override
-	protected void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_rain_receiver);
-		
-		// this will restart the app in case of a unexcepted crash
-		final PendingIntent intent = PendingIntent.getActivity(RainReceiverActivity.this, 0,
-	            new Intent(getIntent()), getIntent().getFlags());
-		
-		Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+    private SharedPreferences sharedPref;
+    private SharedPreferences.Editor editor;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_rain_receiver);
+
+        sharedPref = this.getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE);
+        editor = sharedPref.edit();
+
+        // this will restart the app in case of a unexcepted crash
+        final PendingIntent intent = PendingIntent.getActivity(RainReceiverActivity.this, 0,
+                new Intent(getIntent()), PendingIntent.FLAG_CANCEL_CURRENT);
+
+        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread thread, final Throwable ex) {
-            	AlarmManager mgr = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-            	mgr.set(AlarmManager.RTC, System.currentTimeMillis() + 2000, intent);
-            	System.exit(2);
+                AlarmManager mgr = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+                mgr.set(AlarmManager.RTC, System.currentTimeMillis() + 2000, intent);
+                System.exit(2);
             }
         });
-		
-		pm = (PowerManager)getSystemService(Context.POWER_SERVICE);
+
+        pm = (PowerManager)getSystemService(Context.POWER_SERVICE);
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "My wakelock");
         wakeLock.acquire();
         
-		received_rain1 = (TextView)findViewById(R.id.id_rain1_received);
-		saved_rain1_server1 = (TextView)findViewById(R.id.id_rain1_server1_saved);
-		saved_rain1_server2 = (TextView)findViewById(R.id.id_rain1_server2_saved);
-		received_rain2 = (TextView)findViewById(R.id.id_rain2_received);
-		saved_rain2_server1 = (TextView)findViewById(R.id.id_rain2_server1_saved);
-		saved_rain2_server2 = (TextView)findViewById(R.id.id_rain2_server2_saved);
-		received_rain3 = (TextView)findViewById(R.id.id_rain3_received);
-		saved_rain3_server1 = (TextView)findViewById(R.id.id_rain3_server1_saved);
-		saved_rain3_server2 = (TextView)findViewById(R.id.id_rain3_server2_saved);
-		rows_buffer = (TextView)findViewById(R.id.id_rows_buffer);
-		
-		startService(new Intent(RainReceiverActivity.this, RainReceiverService.class));
-		doBindService();
-	}
-	
-	@Override
-	public void onDestroy() {
-		super.onDestroy();
-		wakeLock.release();
-	}
-	
-	@Override
-	public void onBackPressed() {
-		//
-	}
+        received_rain1 = (TextView)findViewById(R.id.id_rain1_received);
+        saved_rain1_server1 = (TextView)findViewById(R.id.id_rain1_server1_saved);
+        saved_rain1_server2 = (TextView)findViewById(R.id.id_rain1_server2_saved);
+        received_rain2 = (TextView)findViewById(R.id.id_rain2_received);
+        saved_rain2_server1 = (TextView)findViewById(R.id.id_rain2_server1_saved);
+        saved_rain2_server2 = (TextView)findViewById(R.id.id_rain2_server2_saved);
+        received_rain3 = (TextView)findViewById(R.id.id_rain3_received);
+        saved_rain3_server1 = (TextView)findViewById(R.id.id_rain3_server1_saved);
+        saved_rain3_server2 = (TextView)findViewById(R.id.id_rain3_server2_saved);
+        rows_buffer = (TextView)findViewById(R.id.id_rows_buffer);
+
+        etSensor1 = (EditText)findViewById(R.id.sensor1);
+        etSensor2 = (EditText)findViewById(R.id.sensor2);
+        etSensor3 = (EditText)findViewById(R.id.sensor3);
+        etServer = (EditText)findViewById(R.id.etServer);
+        etMonitor = (EditText)findViewById(R.id.etMonitor);
+
+        bSave = (Button)findViewById(R.id.bSave);
+
+        //Number to be saved should be in the format +639059716422
+        //Server address should be in: http://admurainsensor.comxa.com
+        etSensor1.setText(sharedPref.getString(Constants.SENSOR1, "Please enter sensor1 num."));
+        etSensor2.setText(sharedPref.getString(Constants.SENSOR2, "Please enter sensor2 num."));
+        etSensor3.setText(sharedPref.getString(Constants.SENSOR3, "Please enter sensor3 num."));
+        etMonitor.setText(sharedPref.getString(Constants.MONITOR, "Please enter monitor num."));
+        etServer.setText(sharedPref.getString(Constants.SERVER1, "Please enter server address"));
+
+        bSave.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                editor.putString(Constants.SENSOR1, etSensor1.getText().toString()).apply();
+                editor.putString(Constants.SENSOR2, etSensor2.getText().toString()).apply();
+                editor.putString(Constants.SENSOR3, etSensor3.getText().toString()).apply();
+                editor.putString(Constants.MONITOR, etMonitor.getText().toString()).apply();
+                editor.putString(Constants.SERVER1, etServer.getText().toString()).apply();
+                Toast.makeText(getApplicationContext(), "Saved", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        startService(new Intent(RainReceiverActivity.this, RainReceiverService.class));
+        doBindService();
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        doUnbindService();
+        if (wakeLock.isHeld())
+            wakeLock.release();
+    }
+
+    @Override
+    public void onBackPressed() {
+        //
+    }
     
     @SuppressLint("HandlerLeak")
-	public class IncomingHandler extends Handler {
+    public class IncomingHandler extends Handler {
         @Override
         public void handleMessage(Message msg) {
-        	String str = null;
+            String str = null;
             switch (msg.what) { 
-            	case RainReceiverService.MSG_SET_ROWS_BUFFER:
-	            	str = msg.getData().getString("str");
-	            	rows_buffer.setText(str);
-	                break;
-	            case RainReceiverService.MSG_SET_RECEIVED_RAIN1:
-	            	str = msg.getData().getString("str");
-	            	received_rain1.setText(str);
-	                break;
-	            case RainReceiverService.MSG_SET_SAVED_RAIN1_SERVER1:
-	            	str = msg.getData().getString("str");
-	            	saved_rain1_server1.setText(str);
-	                break;
-	            case RainReceiverService.MSG_SET_SAVED_RAIN1_SERVER2:
-	            	str = msg.getData().getString("str");
-	            	saved_rain1_server2.setText(str);
-	                break;
-	            case RainReceiverService.MSG_SET_RECEIVED_RAIN2:
-	            	str = msg.getData().getString("str");
-	            	received_rain2.setText(str);
-	                break;
-	            case RainReceiverService.MSG_SET_SAVED_RAIN2_SERVER1:
-	            	str = msg.getData().getString("str");
-	            	saved_rain2_server1.setText(str);
-	                break;
-	            case RainReceiverService.MSG_SET_SAVED_RAIN2_SERVER2:
-	            	str = msg.getData().getString("str");
-	            	saved_rain2_server2.setText(str);
-	                break;
-	            case RainReceiverService.MSG_SET_RECEIVED_RAIN3:
-	            	str = msg.getData().getString("str");
-	            	received_rain3.setText(str);
-	                break;
-	            case RainReceiverService.MSG_SET_SAVED_RAIN3_SERVER1:
-	            	str = msg.getData().getString("str");
-	            	saved_rain3_server1.setText(str);
-	                break;
-	            case RainReceiverService.MSG_SET_SAVED_RAIN3_SERVER2:
-	            	str = msg.getData().getString("str");
-	            	saved_rain3_server2.setText(str);
-	                break;
-	            default:
-	                super.handleMessage(msg);
+                case Constants.MSG_SET_ROWS_BUFFER:
+                    str = msg.getData().getString("str");
+                    rows_buffer.setText(str);
+                    break;
+                case Constants.MSG_SET_RECEIVED_RAIN1:
+                    str = msg.getData().getString("str");
+                    received_rain1.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN1_SERVER1:
+                    str = msg.getData().getString("str");
+                    saved_rain1_server1.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN1_SERVER2:
+                    str = msg.getData().getString("str");
+                    saved_rain1_server2.setText(str);
+                    break;
+                case Constants.MSG_SET_RECEIVED_RAIN2:
+                    str = msg.getData().getString("str");
+                    received_rain2.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN2_SERVER1:
+                    str = msg.getData().getString("str");
+                    saved_rain2_server1.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN2_SERVER2:
+                    str = msg.getData().getString("str");
+                    saved_rain2_server2.setText(str);
+                    break;
+                case Constants.MSG_SET_RECEIVED_RAIN3:
+                    str = msg.getData().getString("str");
+                    received_rain3.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN3_SERVER1:
+                    str = msg.getData().getString("str");
+                    saved_rain3_server1.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN3_SERVER2:
+                    str = msg.getData().getString("str");
+                    saved_rain3_server2.setText(str);
+                    break;
+                default:
+                    super.handleMessage(msg);
             }
         }
     }
@@ -143,7 +185,7 @@ public class RainReceiverActivity extends Activity {
             // If we have received the service, and hence registered with it, then now is the time to unregister.
             if (mService != null) {
                 try {
-                    Message msg = Message.obtain(null, RainReceiverService.MSG_UNREGISTER_CLIENT);
+                    Message msg = Message.obtain(null, Constants.MSG_UNREGISTER_CLIENT);
                     msg.replyTo = mMessenger;
                     mService.send(msg);
                 } catch (RemoteException e) {
@@ -162,7 +204,7 @@ public class RainReceiverActivity extends Activity {
             mService = new Messenger(myService);
             Toast.makeText(RainReceiverActivity.this, "Service : attached", Toast.LENGTH_SHORT).show();
             try {
-                Message msg = Message.obtain(null, RainReceiverService.MSG_REGISTER_CLIENT);
+                Message msg = Message.obtain(null, Constants.MSG_REGISTER_CLIENT);
                 msg.replyTo = mMessenger;
                 mService.send(msg);
             } catch (RemoteException e) {
