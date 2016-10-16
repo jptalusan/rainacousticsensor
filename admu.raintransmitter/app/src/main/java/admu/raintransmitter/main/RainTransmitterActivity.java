@@ -80,8 +80,8 @@ public class RainTransmitterActivity extends Activity {
         etServerNumber = (EditText)findViewById(R.id.etServerNumber);
         bSave = (Button)findViewById(R.id.bSave);
 
-        etMonitorNumber.setText(sharedPref.getString(Constants.MONITOR_NUM_KEY, ""));
-        etServerNumber.setText(sharedPref.getString(Constants.SERVER_NUM_KEY, ""));
+        etMonitorNumber.setText(sharedPref.getString(Constants.MONITOR_NUM_KEY, "Please enter monitor num."));
+        etServerNumber.setText(sharedPref.getString(Constants.SERVER_NUM_KEY, "Please enter server num."));
 
         bSave.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -142,8 +142,10 @@ public class RainTransmitterActivity extends Activity {
         finish();
         super.onDestroy();
     }
-    
-    
+
+    /**
+     * Receives the message from sendMessageToUI in RainTransmitterService
+     */
     public static class IncomingHandler extends Handler {
         @Override
         public void handleMessage(Message msg) {

@@ -155,6 +155,11 @@ public class RainTransmitterService extends Service {
         }
     }
 
+    /**
+     * Updates the UI textview in the main activity
+     * @param object
+     * @param message
+     */
     private void sendMessageToUI(int object, String message) {
         for (int i = mClients.size() - 1; i >= 0; --i) {
             try {
@@ -174,6 +179,7 @@ public class RainTransmitterService extends Service {
     /**
      * Sends SMS to number in buffer row: String number, String message, String priority
      * deletes the row from the buffer once sent.
+     * This only sends information regarding sound and signal when GSM is set.
      * @param row Buffer row: [0] id, [1] String number, [2] String message, [3] String priority
      */
     private void sendSMS(final String[] row) {
@@ -219,6 +225,9 @@ public class RainTransmitterService extends Service {
         return (int) (((float)level / (float)scale) * 100);
     }
 
+    /**
+     * Ensures that the start_time will only be 2 minutes away from initialization
+     */
     public void InitializeTime() {
         if (Integer.parseInt(m.format(new Date()).substring(1,2)) < 2)
             start_time = hm.format(new Date()).substring(0,4) + "2:00";
@@ -274,7 +283,6 @@ public class RainTransmitterService extends Service {
         }
 
         if (data[1].equals(Constants.wifi)) {
-            //debug
             startLoggerTimer();
             startModeTimer();
             InitializeTime();
@@ -288,6 +296,38 @@ public class RainTransmitterService extends Service {
             sendMessageToUI(Constants.MSG_SET_MODE_TEST, "");
             buffer.insertRow(monitorNumber, (Constants.SENSOR + " here, I'll start recording at : " + start_time), "1");
         }
+    }
+
+    /**
+     * Starts a logger timer that lasts for Constants.LOGGER_INTERVAL that starts immediately.
+     * This sends rows on the buffer to the monitor mobile device (depending on priority)
+     * Also checks battery (should be a different timer i think)
+     */
+    public void startLoggerTimer() {
+        loggerTimer = null;
+        loggerTimer = new Timer();
+        loggerTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                // check if they are some sms to send
+                if (buffer.getNumberRows("0") > 0)
+                    sendSMS(buffer.getFirstRow("0"));
+                else if (buffer.getNumberRows("1") > 0)
+                    sendSMS(buffer.getFirstRow("1"));
+                else if (buffer.getNumberRows("2") > 0)
+                    sendSMS(buffer.getFirstRow("2"));
+                // check battery
+                int bat = getBatteryLevel();
+                if (bat == 90)
+                    isPowerProblem = false;
+                if (bat == 50)
+                    isPowerProblem = true;
+                if (bat == 10 && isPowerProblem) {
+                    buffer.insertRow(monitorNumber, Constants.SENSOR + " here, my battery is 10% so there is a problem with my power system. Please come check on me! Thanks :)", "0");
+                    isPowerProblem = false;
+                }
+            }
+        }, 0, Constants.LOGGER_INTERVAL);
     }
 
     /**
@@ -340,12 +380,12 @@ public class RainTransmitterService extends Service {
                     }
                 }
             }
-        }
-                , 0, Constants.SAMPLER_INTERVAL);
+        }, 0, Constants.SAMPLER_INTERVAL);
     }
 
     /**
      * Why is this the only one with process and Send? Why not GSM?
+     * This saves data received to both buffer and backup
      */
     public void startSamplerTimer(){
         samplerTimer = null;
@@ -381,42 +421,13 @@ public class RainTransmitterService extends Service {
                     }
                 }
             }
-        }
-                , 0, Constants.SAMPLER_INTERVAL);
+        }, 0, Constants.SAMPLER_INTERVAL);
     }
 
     public void stopSamplerTimer() {
         samplerTimer.cancel();
         samplerTimer.purge();
         samplerTimer = null;
-    }
-
-    public void startLoggerTimer(){
-        loggerTimer = null;
-        loggerTimer = new Timer();
-        loggerTimer.scheduleAtFixedRate(new TimerTask(){
-            @Override
-            public void run() {
-                // check if they are some sms to send
-                if (buffer.getNumberRows("0") > 0)
-                    sendSMS(buffer.getFirstRow("0"));
-                else if (buffer.getNumberRows("1") > 0)
-                    sendSMS(buffer.getFirstRow("1"));
-                else if (buffer.getNumberRows("2") > 0)
-                    sendSMS(buffer.getFirstRow("2"));
-                // check battery
-                int bat = getBatteryLevel();
-                if (bat == 90)
-                    isPowerProblem = false;
-                if (bat == 50)
-                    isPowerProblem = true;
-                if (bat == 10 && isPowerProblem) {
-                    buffer.insertRow(monitorNumber, Constants.SENSOR + " here, my battery is 10% so there is a problem with my power system. Please come check on me! Thanks :)", "0");
-                    isPowerProblem = false;
-                }
-            }
-        }
-                , 0, Constants.LOGGER_INTERVAL);
     }
 
     public void stopLoggerTimer() {
@@ -427,6 +438,7 @@ public class RainTransmitterService extends Service {
 
     /**
      * Saves the sound and signal arguments into both backup and buffer sqliteDBs
+     * This doesn't really send anything, only saves to DB
      * TODO: Should be in it's own class
      * TODO: Figure out what to is being done with the server number
      * buffer receives the ff msg format: servernumber, msg (concatenated), priority (2)
