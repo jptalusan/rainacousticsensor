@@ -57,13 +57,6 @@ public class RainReceiverService extends Service {
         filter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
         this.registerReceiver(this.SmsReceiver, filter);
 
-        SharedPreferences sharedPref = getApplicationContext().getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE);
-        monitorNumber = sharedPref.getString(Constants.MONITOR, "");
-        server1 = sharedPref.getString(Constants.SERVER1, "");
-        rain1number = sharedPref.getString(Constants.SENSOR1, "");
-        rain2number = sharedPref.getString(Constants.SENSOR2, "");
-        rain3number = sharedPref.getString(Constants.SENSOR3, "");
-
         pm = (PowerManager)getSystemService(Context.POWER_SERVICE);
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "My wakelock");
         
@@ -136,6 +129,12 @@ public class RainReceiverService extends Service {
     private BroadcastReceiver SmsReceiver = new BroadcastReceiver(){
 		@Override
         public void onReceive(Context context, Intent intent) {
+            SharedPreferences sharedPref = getApplicationContext().getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE);
+            monitorNumber = sharedPref.getString(Constants.MONITOR, "");
+            server1 = sharedPref.getString(Constants.SERVER1, "");
+            rain1number = sharedPref.getString(Constants.SENSOR1, "");
+            rain2number = sharedPref.getString(Constants.SENSOR2, "");
+            rain3number = sharedPref.getString(Constants.SENSOR3, "");
             // Get SMS map from Intent
             Bundle extras = intent.getExtras();
             if (extras != null) {
