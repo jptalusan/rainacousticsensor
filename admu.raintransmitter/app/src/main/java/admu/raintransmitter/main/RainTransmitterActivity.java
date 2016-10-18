@@ -80,6 +80,7 @@ public class RainTransmitterActivity extends Activity {
         etServerNumber = (EditText)findViewById(R.id.etServerNumber);
         bSave = (Button)findViewById(R.id.bSave);
 
+        //Number to be saved should be in the format +639059716422
         etMonitorNumber.setText(sharedPref.getString(Constants.MONITOR_NUM_KEY, "Please enter monitor num."));
         etServerNumber.setText(sharedPref.getString(Constants.SERVER_NUM_KEY, "Please enter server num."));
 
@@ -91,6 +92,8 @@ public class RainTransmitterActivity extends Activity {
                 Toast.makeText(getApplicationContext(), "Saved", Toast.LENGTH_SHORT).show();
             }
         });
+
+        Log.d("Get string", "" + sharedPref.getString(Constants.MONITOR_NUM_KEY, ""));
 
         startService(new Intent(RainTransmitterActivity.this, RainTransmitterService.class));
         doBindService();

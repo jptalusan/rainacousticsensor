@@ -8,7 +8,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
 import android.database.sqlite.SQLiteDatabase;
 import android.os.AsyncTask;
 import android.os.BatteryManager;
@@ -88,9 +87,9 @@ public class RainTransmitterService extends Service {
     public void onCreate() {
         super.onCreate();
 
-        SharedPreferences sharedPref = getApplicationContext().getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE);
-        monitorNumber = sharedPref.getString(Constants.MONITOR_NUM_KEY, "");
-        serverNumber = sharedPref.getString(Constants.SERVER_NUM_KEY, "");
+//        SharedPreferences sharedPref = getApplicationContext().getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE);
+//        monitorNumber = sharedPref.getString(Constants.MONITOR_NUM_KEY, "");
+//        serverNumber = sharedPref.getString(Constants.SERVER_NUM_KEY, "");
 
         pm = (PowerManager)getSystemService(Context.POWER_SERVICE);
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, Constants.WAKELOCK);
@@ -500,7 +499,7 @@ public class RainTransmitterService extends Service {
         msg += (String.valueOf(dis[9]) + ";#");
 
         Log.d("RainSensor", msg);
-        buffer.insertRow(Constants.serverNumber, msg, "2");
+        buffer.insertRow(serverNumber, msg, "2");
         backup.insertRow(msg);
     }
 
@@ -537,6 +536,12 @@ public class RainTransmitterService extends Service {
     public class SMSBroadcastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
+            monitorNumber = getApplicationContext()
+                    .getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE)
+                    .getString(Constants.MONITOR_NUM_KEY, "");
+            serverNumber = getApplicationContext()
+                    .getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE)
+                    .getString(Constants.SERVER_NUM_KEY, "");
             Bundle bundle = intent.getExtras();
             if (bundle != null) {
                 Object[] pdus = (Object[]) bundle.get("pdus");
@@ -546,6 +551,8 @@ public class RainTransmitterService extends Service {
                     messages[i] = SmsMessage.createFromPdu((byte[]) pdus[i]);
                     String body = messages[i].getMessageBody();
                     String number = messages[i].getOriginatingAddress();
+                    Log.d("Received SMS", number + ":" + body);
+                    Log.d("Monitor No." , monitorNumber);
                     // check the msg
 //                    //DEBUGGING
 //                    body = "Start-WIFI";
