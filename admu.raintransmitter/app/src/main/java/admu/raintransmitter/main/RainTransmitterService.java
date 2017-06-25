@@ -8,8 +8,6 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.database.sqlite.SQLiteDatabase;
-import android.os.AsyncTask;
 import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Environment;
@@ -26,20 +24,24 @@ import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.widget.Toast;
 
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.text.DateFormat;
+import java.io.OutputStreamWriter;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class RainTransmitterService extends Service {
-
+    private static final String TAG = "Rain Tx Service";
     ArrayList<Messenger> mClients = new ArrayList<>(); // Keeps track of all current registered clients.
     final Messenger mMessenger = new Messenger(new IncomingHandler()); // Target we publish for clients to send messages to IncomingHandler.
 
@@ -47,10 +49,12 @@ public class RainTransmitterService extends Service {
     private PowerManager.WakeLock wakeLock;
 
     private int signalStrength = -1;
-    private boolean isRecording, isWaitingToStart, isPowerProblem;
+    private boolean isRecording = false;
+    private boolean isWaitingToStart = false;
+    private boolean isPowerProblem = false;
     private String start_time = null;
-    private double[] sound = new double[Constants.SAMPLES];
-    private double[] signal = new double[Constants.SAMPLES];
+    private double[] sound = new double[10];
+    private double[] signal = new double[10];
     private int position = 0;
 
     // timer for logging and sampling
@@ -75,8 +79,8 @@ public class RainTransmitterService extends Service {
     private FileWriter audioLog;
     private long currentTime;
     private long stopTime;
-    private String monitorNumber = "";
-    private String serverNumber = "";
+    private String controllerNumber = "";
+    private String serverReceiverNumber = "";
 
     private static final DecimalFormat ftRmsDb = new DecimalFormat("0.00");
     private static final SimpleDateFormat hms = new SimpleDateFormat("HH:mm:ss", Locale.ENGLISH);
@@ -87,20 +91,41 @@ public class RainTransmitterService extends Service {
     public void onCreate() {
         super.onCreate();
 
-//        SharedPreferences sharedPref = getApplicationContext().getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE);
-//        monitorNumber = sharedPref.getString(Constants.MONITOR_NUM_KEY, "");
-//        serverNumber = sharedPref.getString(Constants.SERVER_NUM_KEY, "");
+        File dir =new File(android.os.Environment.getExternalStorageDirectory(),"rainsensorproject");
+        if(!dir.exists())
+        {
+            dir.mkdirs();
+        }
+        String filename= "logger.txt";
+        File f = new File(dir+File.separator+filename);
+        try
+        {
+            FileOutputStream fOut = new FileOutputStream(f);
+            OutputStreamWriter myOutWriter = new OutputStreamWriter(
+                    fOut);
+            Calendar c = Calendar.getInstance();
+            System.out.println("Current time => "+c.getTime());
+
+            SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            String formattedDate = df.format(c.getTime());
+
+            myOutWriter.append("Data for Current Date and Time : " +formattedDate);
+            myOutWriter.append("\n");
+            myOutWriter.close();
+            fOut.close();
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+        }
 
         pm = (PowerManager)getSystemService(Context.POWER_SERVICE);
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, Constants.WAKELOCK);
 
         // create a folder for the record
+        Log.d(TAG, "Filepath: " + Constants.SDLINK);
         File bufferfile = new File(Constants.SDLINK + "/buffer.sqlite");
-        try {
-            buffer = new SQLiteBuffer(bufferfile.getPath());
-        } catch (Exception ex) {
-            buffer.db = SQLiteDatabase.openDatabase("/storage/sdcard0/rainsensorproject/buffer.sqlite", null, SQLiteDatabase.NO_LOCALIZED_COLLATORS);
-        }
+        buffer = new SQLiteBuffer(bufferfile.getPath());
         File backupfile = new File(Constants.SDLINK + "/backup.sqlite");
         backup = new SQLiteBackup(backupfile.getPath());
 
@@ -190,7 +215,6 @@ public class RainTransmitterService extends Service {
             public void onReceive(Context arg0, Intent arg1) {
                 switch (getResultCode()) {
                     case Activity.RESULT_OK:
-                        //Toast.makeText(getBaseContext(), "SMS sent", Toast.LENGTH_SHORT).show();
                         buffer.deleteRow(Integer.parseInt(row[0]));
                         break;
                 }
@@ -199,14 +223,58 @@ public class RainTransmitterService extends Service {
         }, new IntentFilter(SENT));
 
         SmsManager sms = SmsManager.getDefault();
+        //Loop this for data (since many rows) get all rows for 18 values
         sms.sendTextMessage(row[1], null, row[2], sentPI, null);
+    }
+
+    //TODO: For 18 data points
+    private void sendDataSMS(List<String[]> data) {
+        Log.d(TAG, "SendDataSMS: " + data.size());
+        String SENT = "SMS_SENT";
+        PendingIntent sentPI = PendingIntent.getBroadcast(this, 0, new Intent(SENT), 0);
+        //---when the SMS has been sent---
+        final List<String[]> fData = data;
+        registerReceiver(new BroadcastReceiver(){
+            @Override
+            public void onReceive(Context arg0, Intent arg1) {
+                switch (getResultCode()) {
+                    case Activity.RESULT_OK:
+                        for (String[] sArr:
+                             fData) {
+                            buffer.deleteRow(Integer.parseInt(sArr[0]));
+                        }
+                        break;
+                }
+                unregisterReceiver(this);
+            }
+        }, new IntentFilter(SENT));
+
+        //Loop this for data (since many rows) get all rows for 18 values
+        String initData = data.get(0)[2];
+        String[] parsedInitData = initData.split(";");
+        StringBuilder newMsg = new StringBuilder();
+        newMsg.append(initData.substring(0, initData.length() - 1));
+
+        String prefix = "";
+        for (int i = 1; i < data.size(); ++i) {
+            newMsg.append(prefix);
+            prefix = ";";
+            String[] parsedTemp = data.get(i)[2].split(";");
+            newMsg.append(parsedTemp[2]);
+        }
+        newMsg.append("#");
+
+        Log.d(TAG, "NewTxt:" + newMsg);
+        Log.d(TAG, "Start:" + data.get(0)[0] + "," + data.get(0)[1] + "," + data.get(0)[2]);
+        SmsManager sms = SmsManager.getDefault();
+        sms.sendTextMessage(data.get(0)[1], null, newMsg.toString(), sentPI, null);
     }
 
     private class SignalStrengthListener extends PhoneStateListener {
         @Override
         public void onSignalStrengthsChanged(android.telephony.SignalStrength signalSt) {
             // get the signal strength (a value between 0 and 31) & convert it in dBm
-            signalStrength = -113 + 2*signalSt.getGsmSignalStrength();
+            signalStrength = -113 + (2 * signalSt.getGsmSignalStrength());
             super.onSignalStrengthsChanged(signalSt);
         }
     }
@@ -243,23 +311,19 @@ public class RainTransmitterService extends Service {
             else
                 start_time = hm.format(new Date()).substring(0,3) + String.valueOf(test + 1) + "0:00";
         }
+        Log.d(TAG, "Start time: " + start_time);
+
         Toast.makeText(getApplicationContext(), start_time, Toast.LENGTH_LONG).show();
         isWaitingToStart = true;
     }
 
     private String setupName() {
-        String fileName;
-        fileName = String.valueOf(System.currentTimeMillis());
-        return fileName;
+        return String.valueOf(System.currentTimeMillis());
     }
 
-    private String setupDate () {
-        String sFileNameTemp;
-        DateFormat dfMyTime = DateFormat.getTimeInstance(DateFormat.MEDIUM);
-        DateFormat dfMyDate= DateFormat.getDateInstance(DateFormat.SHORT);
-        Date dMyDate = new Date(System.currentTimeMillis());
-        sFileNameTemp = " " + dfMyDate.format(dMyDate) + " , " + dfMyTime.format(dMyDate);
-        return sFileNameTemp;
+    private String setupDate() {
+        long timeInSeconds = System.currentTimeMillis() / 1000;
+        return Long.toString(timeInSeconds);
     }
 
     /**
@@ -269,7 +333,8 @@ public class RainTransmitterService extends Service {
      */
     @SuppressLint("UnlocalizedSms")
     public void messageAnalysis(String[] data) {
-        if (data[1].equals(Constants.gsm)) {
+        Log.d(TAG, "messageAnalysis()");
+        if (data[1].toLowerCase().equals(Constants.gsm)) {
             startLoggerTimer();
             startSamplerTimer();
             InitializeTime();
@@ -278,7 +343,7 @@ public class RainTransmitterService extends Service {
             sound = new double[Constants.SAMPLES];
             signal = new double[Constants.SAMPLES];
             position = 0;
-            buffer.insertRow(monitorNumber, (Constants.SENSOR + " here, I'll start recording at : " + start_time), "1");
+            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, I'll start recording at : " + start_time), "1");
         }
 
         if (data[1].equals(Constants.wifi)) {
@@ -286,14 +351,14 @@ public class RainTransmitterService extends Service {
             startModeTimer();
             InitializeTime();
             sendMessageToUI(Constants.MSG_SET_MODE_WIFI, "");
-            buffer.insertRow(monitorNumber, (Constants.SENSOR + " here, I'll start recording at : " + start_time), "1");
+            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, I'll start recording at : " + start_time), "1");
         }
         if (data[1].equals(Constants.test)) {
             startLoggerTimer();
             startModeTimer();
             InitializeTime();
             sendMessageToUI(Constants.MSG_SET_MODE_TEST, "");
-            buffer.insertRow(monitorNumber, (Constants.SENSOR + " here, I'll start recording at : " + start_time), "1");
+            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, I'll start recording at : " + start_time), "1");
         }
     }
 
@@ -302,6 +367,9 @@ public class RainTransmitterService extends Service {
      * This sends rows on the buffer to the monitor mobile device (depending on priority)
      * Also checks battery (should be a different timer i think)
      */
+    //TODO: should have the data to be sent in a different priority? so that it would check if there are more than 18 of them then attempt to send all 18
+    //then delete all 18 rows after
+    //Else if only notification send them immediately and then delete.
     public void startLoggerTimer() {
         loggerTimer = null;
         loggerTimer = new Timer();
@@ -309,12 +377,15 @@ public class RainTransmitterService extends Service {
             @Override
             public void run() {
                 // check if they are some sms to send
-                if (buffer.getNumberRows("0") > 0)
+                if (buffer.getNumberRows("0") > 0) {
                     sendSMS(buffer.getFirstRow("0"));
-                else if (buffer.getNumberRows("1") > 0)
+                } else if (buffer.getNumberRows("1") > 0) {
                     sendSMS(buffer.getFirstRow("1"));
-                else if (buffer.getNumberRows("2") > 0)
-                    sendSMS(buffer.getFirstRow("2"));
+                } else if (buffer.getNumberRows("2") >= 18) {
+                    //Where the data is being sent
+                    sendDataSMS(buffer.getXNumberOfDataPoints(18));
+//                    sendSMS(buffer.getFirstRow("2"));
+                }
                 // check battery
                 int bat = getBatteryLevel();
                 if (bat == 90)
@@ -322,7 +393,7 @@ public class RainTransmitterService extends Service {
                 if (bat == 50)
                     isPowerProblem = true;
                 if (bat == 10 && isPowerProblem) {
-                    buffer.insertRow(monitorNumber, Constants.SENSOR + " here, my battery is 10% so there is a problem with my power system. Please come check on me! Thanks :)", "0");
+                    buffer.insertRow(controllerNumber, Constants.SENSOR + " here, battery at 10%. Please come check on me!", "0");
                     isPowerProblem = false;
                 }
             }
@@ -354,7 +425,7 @@ public class RainTransmitterService extends Service {
                             snd = recorderThread.getPower();
                             int sig = signalStrength;
                             audioData = setupDate() + "," + Double.toString(snd) + ",dB," + Integer.toString(sig) + ",dBm";
-                            Log.w("rain316", "Signal Level:" + Integer.toString(sig));
+                            Log.w(TAG, "Signal Level:" + Integer.toString(sig));
                             audioLog = new FileWriter(audioLogFile, true);
                             audioLog.write(audioData + "\r\n");
                             currentTime = System.currentTimeMillis();
@@ -365,7 +436,7 @@ public class RainTransmitterService extends Service {
                         audioLog.close();
                     } catch (Throwable t) {
                         // TODO: handle exception
-                        Log.e("AudioRecord", "Recording Failed");
+                        Log.e(TAG, "WIFI Recording Failed " + t.toString());
                     }
                 }
 
@@ -383,31 +454,53 @@ public class RainTransmitterService extends Service {
     }
 
     /**
-     * Why is this the only one with process and Send? Why not WIFI?
+     * Why is this the only one with process and Send? Why GSM only not WIFI?
      * This saves data received to both buffer and backup
      */
+    //TODO: This gets the sound level power 10 times a second (10Hz)
     public void startSamplerTimer(){
         samplerTimer = null;
         samplerTimer = new Timer();
+        audioFileName = setupName() + "Audio";
+        audioLogFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".csv");
+        try {
+            audioLogFile.createNewFile();
+        } catch (IOException ex) {
+            throw new IllegalStateException("Failed to create " + audioLog.toString());
+        }
         samplerTimer.scheduleAtFixedRate(new TimerTask(){
             @Override
             public void run() {
                 if (isRecording) {
-                    if (position < Constants.SAMPLES) {
+                    if (position < 10) {
                         sound[position] = recorderThread.getPower();
-                        signal[position] = signalStrength;
                         position++;
-                    }
-                    if (position == Constants.SAMPLES) {
-                        final double[] snd = sound;
-                        final double[] sig = signal;
+                        }
+
+                    if (position == 10) {
                         position = 0;
-                        new Thread(new Runnable() {
-                            @Override
-                            public void run() {
-                                processAndSend(snd, sig);
+                        try {
+                            double sumOfSoundLevel = 0.0;
+                            for (double soundLevel:
+                                 sound) {
+                                sumOfSoundLevel += soundLevel;
                             }
-                        }).start();
+                            audioData = setupDate() + "," + Double.toString(sumOfSoundLevel);
+                            audioLog = new FileWriter(audioLogFile, true);
+                            audioLog.write(audioData + "\r\n");
+                            audioLog.flush();
+                            audioLog.close();
+
+                            final double soundLevelTemp = sumOfSoundLevel;
+                            new Thread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    processAndSend(soundLevelTemp);
+                                }
+                            }).start();
+                        } catch (IOException e) {
+                            Log.e(TAG, "GSM Recording Failed " + e.toString());
+                        }
                     }
                 }
                 if (isWaitingToStart) {
@@ -420,7 +513,7 @@ public class RainTransmitterService extends Service {
                     }
                 }
             }
-        }, 0, Constants.SAMPLER_INTERVAL);
+        }, 0, Constants.SAMPLER_INTERVAL/10);
     }
 
     public void stopSamplerTimer() {
@@ -442,88 +535,37 @@ public class RainTransmitterService extends Service {
      * TODO: Figure out what to is being done with the server number
      * buffer receives the ff msg format: servernumber, msg (concatenated), priority (2)
      * backup receives the ff msg format: # + SENSOR.NUM + sound[5] + signal[5] + distribution of sound[10]
-     * @param sound
-     * @param signal
+     * @param soundLevel
      */
-    public void processAndSend(double[] sound, double[] signal) {
-        // PROCESS
-        double[] snd = new double[6];
-        double[] sig = new double[6];
-        int[] dis = new int[10];
-
-        // sound and signal
-        int pos = 0;
-        int POS = 0;
-        while (POS < 6) {
-            double snd_sum = 0;
-            double sig_sum = 0;
-            for (int i = 0; i < 20; i++) {
-                snd_sum += sound[pos];
-                sig_sum += signal[pos];
-                pos++;
-            }
-            snd[POS] = snd_sum / 20;
-            sig[POS] = sig_sum / 20;
-            POS++;
-        }
-
-        // distribution of sound
-        for (int i = 0; i < 10; i++) {
-            double k = Constants.THRESHOLD_START + i * Constants.THRESHOLD_STEP;
-            for (int j = 0; j < Constants.SAMPLES; j++) {
-                if (sound[j] >=  k) {
-                    dis[i]++;
-                }
-            }
-        }
-
+    //TODO: Concatenate 8-10 data points per text (equivalent to 10 seconds) or 140 characters. which ever comes first?
+    public void processAndSend(double soundLevel) {
+        Log.d(TAG, "processAndSend()");
         // SEND //
         SimpleDateFormat ft =  new SimpleDateFormat ("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH);
         String msg = "#" + Constants.SENSOR + ";";
-        msg += ft.format(new Date()) + ";";
-        for (int i = 0; i < 5; i++) {
-            msg += (ftRmsDb.format(snd[i]) + ",");
+        msg += setupDate() + ";";
+        msg += ftRmsDb.format(soundLevel) + ";#";
+
+        Log.d(TAG, "Path: " + android.os.Environment.getExternalStorageDirectory().toString());
+        File dir = new File(android.os.Environment.getExternalStorageDirectory(),"rainsensorproject");
+        String filename= "sentlogger.txt";
+        File f = new File(dir+File.separator+filename);
+        try
+        {
+            FileWriter fileWritter = new FileWriter(f,true);
+            BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
+            bufferWritter.write(ft.format(new Date()));
+            bufferWritter.write("  " + msg + "\n");
+            bufferWritter.close();
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
         }
 
-        msg += ftRmsDb.format(snd[5]) + ";";
-
-        for (int i = 0; i < 5; i++) {
-            msg += (ftRmsDb.format(sig[i]) + ",");
-        }
-
-        msg += ftRmsDb.format(sig[5]) + ";";
-
-        for (int i = 0; i < 9; i++) {
-            msg += (String.valueOf(dis[i]) + ",");
-        }
-        msg += (String.valueOf(dis[9]) + ";#");
-
-        Log.d("RainSensor", msg);
-        buffer.insertRow(serverNumber, msg, "2");
+        Log.d(TAG, "Server,msg,priority" + serverReceiverNumber + "," + msg + ",2");
+        buffer.insertRow(serverReceiverNumber, msg, "2");
         backup.insertRow(msg);
-    }
-
-    /**
-     * Display msg on UI
-     * @param msg Message to display in UI thread when SMS is received.
-     */
-    private void display(String msg) {
-        final String msgStr = msg;
-
-        new AsyncTask<Void, Void, Void>() {
-            @Override
-            protected Void doInBackground(Void... voids) {
-                return null;
-            }
-
-            @Override
-            protected void onPostExecute(Void aVoid) {
-                Toast.makeText(RainTransmitterService.this, msgStr, Toast.LENGTH_SHORT).show();
-                super.onPostExecute(aVoid);
-            }
-        }.execute();
-
-        return;
     }
 
     /*
@@ -536,10 +578,10 @@ public class RainTransmitterService extends Service {
     public class SMSBroadcastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            monitorNumber = getApplicationContext()
+            controllerNumber = getApplicationContext()
                     .getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE)
                     .getString(Constants.MONITOR_NUM_KEY, "");
-            serverNumber = getApplicationContext()
+            serverReceiverNumber = getApplicationContext()
                     .getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE)
                     .getString(Constants.SERVER_NUM_KEY, "");
             Bundle bundle = intent.getExtras();
@@ -551,43 +593,41 @@ public class RainTransmitterService extends Service {
                     messages[i] = SmsMessage.createFromPdu((byte[]) pdus[i]);
                     String body = messages[i].getMessageBody();
                     String number = messages[i].getOriginatingAddress();
-                    Log.d("Received SMS", number + ":" + body);
-                    Log.d("Monitor No." , monitorNumber);
+                    Log.d(TAG,"Received SMS: " + number + ":" + body);
+                    Log.d(TAG,"Controller No." + controllerNumber);
                     // check the msg
 //                    //DEBUGGING
 //                    body = "Start-WIFI";
-//                    number = monitorNumber;
+//                    number = controllerNumber;
 //                    //END DEBUG
                     String[] data = body.split("-");
                     if (data.length <= 0) {
                         this.abortBroadcast();
                     }
-                    if (number.equals(monitorNumber) && data[0].toLowerCase().equals("start")) {
-                        display("Processing SMS...");
+                    if (number.equals(controllerNumber) && data[0].toLowerCase().equals("start")) {
                         buffer.truncateTable();
                         SimpleDateFormat ft =  new SimpleDateFormat ("HH:mm:ss", Locale.ENGLISH);
-                        buffer.insertRow(monitorNumber, (Constants.SENSOR + " here, time is " + ft.format(new Date()) + ", my transmitter application is now running :)"), "1");
+                        buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, time is " + ft.format(new Date()) + ", started recording."), "1");
                         messageAnalysis(data);
                         this.abortBroadcast();
                     }
-                    if (number.equals(monitorNumber) && data[0].toLowerCase().equals("stop")) {
-                        display("Processing SMS...");
-                        buffer.insertRow(monitorNumber, (Constants.SENSOR + " here, I don't record anymore :)"), "1");
+                    if (number.equals(controllerNumber) && data[0].toLowerCase().equals("stop")) {
+                        buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, stopped recording."), "1");
                         isRecording = false;
                         isWaitingToStart = false;
                         recorderThread.stopRecording();
                         sendMessageToUI(Constants.MSG_SET_STATUS_OFF, "");
                         this.abortBroadcast();
                     }
-                    if (data[0].equals("TRUNCATE") || data[0].toLowerCase().equals("truncate")) {
-                        if (data[1].equals("BUFFER") || data[1].toLowerCase().equals("buffer")) {
+                    if (number.equals(controllerNumber) && data[0].toLowerCase().equals("truncate")) {
+                        if (data[1].toLowerCase().equals("buffer")) {
                             buffer.truncateTable();
-                            buffer.insertRow(monitorNumber, (Constants.SENSOR + " here, I'll reset the buffer table :)"), "1");
+                            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, resetting buffer table."), "1");
                             this.abortBroadcast();
                         }
-                        if (data[1].equals("BACKUP") || data[1].toLowerCase().equals("backup")) {
+                        if (data[1].toLowerCase().equals("backup")) {
                             backup.truncateTable();
-                            buffer.insertRow(monitorNumber, (Constants.SENSOR + " here, I'll reset the backup table :)"), "1");
+                            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, resetting backup table."), "1");
                             this.abortBroadcast();
                         }
                     }

@@ -26,20 +26,15 @@ public class Constants {
     public static String WAKELOCK = "My wakelock";
 
     public static String SHARED_PREFS = "SHARED_PREFS";
-    // for SMART private String serverNumber ="", monitorNumber = "";
-    // for GLOBE
     public static String MONITOR_NUM_KEY = "MONITOR_NUM";
     public static String SERVER_NUM_KEY = "SERVER_NUM";
-    public static String serverNumber ="+639059716422";
-    public static String monitorNumber = "+639059716422";
-    public static double THRESHOLD_START = -20.0f;
-    public static double THRESHOLD_STEP = 1.0f;
     public static int SAMPLES = 120;
+
     // to be changed for every phone
     public static String SENSOR = "RT1";
-    public static String wifi = "WIFI";
-    public static String gsm = "GSM";
-    public static String test = "TEST";
+    public static String wifi = "wifi";
+    public static String gsm = "gsm";
+    public static String test = "test";
     static String logFile = "log.txt";
 
     // Recorder Thread
