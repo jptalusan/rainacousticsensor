@@ -113,18 +113,18 @@ public class RainTransmitterActivity extends AppCompatActivity {
 
     private void startService() {
         // this will restart the app in case of a unexcepted crash
-//        final PendingIntent intent = PendingIntent.getActivity(RainTransmitterActivity.this, 0,
-//                new Intent(getIntent()), getIntent().getFlags());
-//
-//        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
-//            @Override
-//            public void uncaughtException(Thread thread, final Throwable ex) {
-//                writeError(ex);	// a trace of the error
-//                AlarmManager mgr = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-//                mgr.set(AlarmManager.RTC, System.currentTimeMillis() + 2000, intent);
-//                System.exit(2);
-//            }
-//        });
+        final PendingIntent intent = PendingIntent.getActivity(RainTransmitterActivity.this, 0,
+                new Intent(getIntent()), getIntent().getFlags());
+
+        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+            @Override
+            public void uncaughtException(Thread thread, final Throwable ex) {
+                writeError(ex);	// a trace of the error
+                AlarmManager mgr = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+                mgr.set(AlarmManager.RTC, System.currentTimeMillis() + 2000, intent);
+                System.exit(2);
+            }
+        });
         //end of restart code
 
         startService(new Intent(RainTransmitterActivity.this, RainTransmitterService.class));
