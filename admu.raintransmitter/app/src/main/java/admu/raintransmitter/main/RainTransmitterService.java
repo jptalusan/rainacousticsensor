@@ -383,7 +383,7 @@ public class RainTransmitterService extends Service {
     }
 
     /**
-     * Why is this the only one with process and Send? Why not GSM?
+     * Why is this the only one with process and Send? Why not WIFI?
      * This saves data received to both buffer and backup
      */
     public void startSamplerTimer(){

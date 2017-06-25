@@ -104,7 +104,9 @@ public class RainReceiverService extends Service {
             }
         }
     }
-    
+
+    //What is this message? phone number?
+    //Gets info from TXs and shows in UI
     private void sendMessageToUI(int object, String message) {
         for (int i=mClients.size()-1; i>=0; i--) {
             try {
