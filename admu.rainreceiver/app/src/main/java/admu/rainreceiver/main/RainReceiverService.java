@@ -36,19 +36,6 @@ public class RainReceiverService extends Service {
     ArrayList<Messenger> mClients = new ArrayList<>(); // Keeps track of all current registered clients.
     private final Messenger mMessenger = new Messenger(new IncomingHandler()); // Target we publish for clients to send messages to IncomingHandler.
 
-    static final int MSG_REGISTER_CLIENT = 0;
-    static final int MSG_UNREGISTER_CLIENT = 1;
-    static final int MSG_SET_ROWS_BUFFER = 2;
-    static final int MSG_SET_RECEIVED_RAIN1 = 3;
-    static final int MSG_SET_SAVED_RAIN1_SERVER1 = 4;
-    static final int MSG_SET_SAVED_RAIN1_SERVER2 = 5;
-    static final int MSG_SET_RECEIVED_RAIN2 = 6;
-    static final int MSG_SET_SAVED_RAIN2_SERVER1 = 7;
-    static final int MSG_SET_SAVED_RAIN2_SERVER2 = 8;
-    static final int MSG_SET_RECEIVED_RAIN3 = 9;
-    static final int MSG_SET_SAVED_RAIN3_SERVER1 = 10;
-    static final int MSG_SET_SAVED_RAIN3_SERVER2 = 11;
-
 	private PowerManager pm;
     private PowerManager.WakeLock wakeLock;
     
@@ -155,7 +142,6 @@ public class RainReceiverService extends Service {
         public void onReceive(Context context, Intent intent) {
             SharedPreferences sharedPref = getApplicationContext().getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE);
             controllerNumber = sharedPref.getString(Constants.MONITOR, "");
-            serverAddress = sharedPref.getString(Constants.SERVER1, "");
             rain1number = sharedPref.getString(Constants.SENSOR1, "");
             rain2number = sharedPref.getString(Constants.SENSOR2, "");
             rain3number = sharedPref.getString(Constants.SENSOR3, "");
@@ -185,9 +171,9 @@ public class RainReceiverService extends Service {
 
                             // calling wave update function
                             //20 = #RT1;1498449295;404.57;392.96;259.12;76.22;298.55;434.10;138.91;147.43;44.58;58.08;395.71;328.99;517.80;220.08;177.25;82.12;204.13;44.38#
-                            for(int i = 0; i < data.length; ++i) {
-                                Log.d(TAG, i + ": " + data[i]);
-                            }
+//                            for(int i = 0; i < data.length; ++i) {
+//                                Log.d(TAG, i + ": " + data[i]);
+//                            }
                             //Check if no data was lost in transmission (only complete data will be processed)
                             if (data.length == 20) {
                                 if (data[0].equals("#RT1")
@@ -228,17 +214,23 @@ public class RainReceiverService extends Service {
      * @param row
      */
     public void updateWaveValues(String[] row) {
+        Log.d(TAG, "updateWaveValues()");
         // create an array list to put all the data
         ArrayList<NameValuePair> postParameters = new ArrayList<NameValuePair>();
         ContentValues postParameters1 = new ContentValues();
         String sensorName = row[1];
         String server = row[2];
         String message = row[3];
+
+        Log.d(TAG, "row = sensorName, server, message: " + row[0] + " = " + sensorName + ", " + server + ", " + message);
         postParameters.add(new BasicNameValuePair("data", message));
 
         // http request, server number is here
         String result = "";
         String address = "";
+
+        SharedPreferences sharedPref = getApplicationContext().getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE);
+        serverAddress = sharedPref.getString(Constants.SERVER1, "");
         if (Integer.parseInt(server) == 1) {
             address = serverAddress;
         }
@@ -251,6 +243,7 @@ public class RainReceiverService extends Service {
         } catch (final Exception e) {
             result = "FAIL";
         }
+        Log.d(TAG, "Result: " + result);
 
         String[] text = message.split(";");
         if (result.equals("SUCCESS")) {
@@ -278,6 +271,7 @@ public class RainReceiverService extends Service {
     }
 
     public void startTimer(){
+        Log.d(TAG, "Starttimer for uploading to net");
         // create the timer & reset the array & its position
         logTimer = null;
         logTimer = new Timer();

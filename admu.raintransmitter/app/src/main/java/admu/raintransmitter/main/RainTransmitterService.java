@@ -605,11 +605,16 @@ public class RainTransmitterService extends Service {
                         this.abortBroadcast();
                     }
                     if (number.equals(controllerNumber) && data[0].toLowerCase().equals("start")) {
-                        buffer.truncateTable();
-                        SimpleDateFormat ft =  new SimpleDateFormat ("HH:mm:ss", Locale.ENGLISH);
-                        buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, time is " + ft.format(new Date()) + ", started recording."), "1");
-                        messageAnalysis(data);
-                        this.abortBroadcast();
+                        //TODO: Make sure multiple starts won't cause this to fail
+                        if (!isWaitingToStart) {
+                            buffer.truncateTable();
+                            SimpleDateFormat ft = new SimpleDateFormat("HH:mm:ss", Locale.ENGLISH);
+                            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, time is " + ft.format(new Date()) + ", started recording."), "1");
+                            messageAnalysis(data);
+                            this.abortBroadcast();
+                        } else {
+                            Log.w(TAG, "Already sent start message, please wait, or send stop before starting again.");
+                        }
                     }
                     if (number.equals(controllerNumber) && data[0].toLowerCase().equals("stop")) {
                         buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, stopped recording."), "1");

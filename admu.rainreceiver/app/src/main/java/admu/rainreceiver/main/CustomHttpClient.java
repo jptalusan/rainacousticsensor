@@ -1,5 +1,7 @@
 package admu.rainreceiver.main;
 
+import android.util.Log;
+
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
@@ -16,7 +18,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 
 public class CustomHttpClient {
-
+	private static final String TAG = "CustomHttpClient";
 	// time it takes for our client to timeout
 	public static final int HTTP_TIMEOUT = 30 * 1000; // milliseconds
 	// single instance of our HttpClient
@@ -48,6 +50,7 @@ public class CustomHttpClient {
 	 * @throws Exception
 	 */
 	public static String executeHttpPost(String url, ArrayList<NameValuePair> postParameters) throws Exception {
+		Log.d(TAG, "executeHttpPost(url): " + url + ", " + postParameters.toString());
 		BufferedReader in = null;
 		try {
 			HttpClient client = getHttpClient();
