@@ -15,7 +15,8 @@ foreach($_POST as $key=>$value)
 }
 
 $data = $mysqli->real_escape_string($_POST['data']);
-// echo $data."\n";
+// echo $data;
+// echo "\n";
 $data = substr($data, 1, -1);
 //TODO: Process sndLevels
 $dataArray = explode(';', $data);
