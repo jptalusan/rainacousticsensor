@@ -1,0 +1,28 @@
+For use in x10Hosting webhost: http://x10hosting.com
+http://rainsensor.excthackathon.x10host.com/
+
+Credentials:
+	site login:
+		email: jptalusan@gmail.com
+		password: br00dling!
+	
+	FTP:
+		host: rainsensor.excthackathon.x10host.com
+		port 21
+		Protocol: FTP
+		Encryption: Use explicit FTP over TLS if available
+	
+		logon type: Normal
+		user: rainsensor@excthackathon.x10host.com
+		password: br00dling!
+
+	MySQL:
+		server: localhost
+		user: excthack_user
+		password: br00dling!
+		db: excthack_rainsensor
+			tables: RT1, RT2, RT3
+
+
+	
+	

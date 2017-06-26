@@ -1,5 +1,9 @@
 package admu.rainreceiver.main;
 
+import android.os.Environment;
+
+import java.io.File;
+
 /**
  * Created by JPTalusan on 16/10/2016.
  */
@@ -19,6 +23,8 @@ public class Constants {
     public static final int LOG_INTERVAL = 5 * 1000; // in milliseconds
     public static final String SMS_EXTRA_NAME = "pdus";
     public static String directory = "/rainsensorproject/";
+    public static File sdLink = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + Constants.directory);
+
     public static String INSERT_PHP = "insert.php";
     public static String SHARED_PREFS = "receiver";
 
@@ -27,5 +33,7 @@ public class Constants {
     public static String SENSOR3 = "sensor3";
     public static String SERVER1 = "server1";
     public static String MONITOR = "monitor";
+
+    public static String TRUNCATEBUFFER = "truncatebuffer";
 
 }

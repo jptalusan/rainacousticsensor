@@ -9,7 +9,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
@@ -17,26 +16,44 @@ import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.RemoteException;
 import android.telephony.SmsMessage;
+import android.util.Log;
 
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
 public class RainReceiverService extends Service {
-
+    private static final String TAG = "Rain Rx Service";
     ArrayList<Messenger> mClients = new ArrayList<>(); // Keeps track of all current registered clients.
     private final Messenger mMessenger = new Messenger(new IncomingHandler()); // Target we publish for clients to send messages to IncomingHandler.
+
+    static final int MSG_REGISTER_CLIENT = 0;
+    static final int MSG_UNREGISTER_CLIENT = 1;
+    static final int MSG_SET_ROWS_BUFFER = 2;
+    static final int MSG_SET_RECEIVED_RAIN1 = 3;
+    static final int MSG_SET_SAVED_RAIN1_SERVER1 = 4;
+    static final int MSG_SET_SAVED_RAIN1_SERVER2 = 5;
+    static final int MSG_SET_RECEIVED_RAIN2 = 6;
+    static final int MSG_SET_SAVED_RAIN2_SERVER1 = 7;
+    static final int MSG_SET_SAVED_RAIN2_SERVER2 = 8;
+    static final int MSG_SET_RECEIVED_RAIN3 = 9;
+    static final int MSG_SET_SAVED_RAIN3_SERVER1 = 10;
+    static final int MSG_SET_SAVED_RAIN3_SERVER2 = 11;
 
 	private PowerManager pm;
     private PowerManager.WakeLock wakeLock;
     
-    private String server1 = "";
+    private String serverAddress = "";
     private String server2 = "http://192.168.1.170/settings/";
-	static File sdLink = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + Constants.directory);
 
     private SQLiteBuffer buffer = null;
 
@@ -45,11 +62,21 @@ public class RainReceiverService extends Service {
     private String rain1number = "";
     private String rain2number = "";
     private String rain3number = "";
-    private String monitorNumber = "";
+    private String controllerNumber = "";
     
     @Override
      public void onCreate() {
         super.onCreate();
+
+        File dir =new File(android.os.Environment.getExternalStorageDirectory(),"rainsensorproject");
+        if(!dir.exists())
+        {
+            dir.mkdirs();
+        }
+        File dbfile = new File(dir.getPath() + "/buffer.sqlite");
+        Log.d(TAG, "Filepath: " + dbfile.getPath());
+        buffer = new SQLiteBuffer(dbfile.getPath());
+        buffer.createTable();
 
         // start the receiver for the texts
         IntentFilter filter = new IntentFilter();
@@ -59,11 +86,6 @@ public class RainReceiverService extends Service {
 
         pm = (PowerManager)getSystemService(Context.POWER_SERVICE);
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "My wakelock");
-        
-        sdLink.mkdirs();
-        File dbfile = new File(sdLink + "/buffer.sqlite");
-        buffer = new SQLiteBuffer(dbfile.getPath());
-        buffer.createTable();
         
         startTimer();
     }
@@ -132,8 +154,8 @@ public class RainReceiverService extends Service {
 		@Override
         public void onReceive(Context context, Intent intent) {
             SharedPreferences sharedPref = getApplicationContext().getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE);
-            monitorNumber = sharedPref.getString(Constants.MONITOR, "");
-            server1 = sharedPref.getString(Constants.SERVER1, "");
+            controllerNumber = sharedPref.getString(Constants.MONITOR, "");
+            serverAddress = sharedPref.getString(Constants.SERVER1, "");
             rain1number = sharedPref.getString(Constants.SENSOR1, "");
             rain2number = sharedPref.getString(Constants.SENSOR2, "");
             rain3number = sharedPref.getString(Constants.SENSOR3, "");
@@ -143,36 +165,51 @@ public class RainReceiverService extends Service {
                 // Get received SMS array
                 Object[] smsExtra = (Object[]) extras.get(Constants.SMS_EXTRA_NAME);
                 if (null != smsExtra) {
-                    for (int i = 0; i < smsExtra.length; ++i) {
-                        SmsMessage sms = SmsMessage.createFromPdu((byte[])smsExtra[i]);
+                    for (Object o: smsExtra) {
+                        SmsMessage sms = SmsMessage.createFromPdu((byte[])o);
                         String body = sms.getMessageBody();
                         String number = sms.getOriginatingAddress();
+
+                        Log.d(TAG, "Message received: " + number + ": " + body);
                         // check the msg
                         if (body.substring(0,1).equals("#") && body.substring(body.length() - 1).equals("#")) {
                             String[] data = body.split(";");
+
                             // truncate the buffer table
                             if (data.length == 3) {
-                                if (data[0].equals("#RR") && data[1].equals("TRUNCATEBUFFER") && number.equals(monitorNumber)) {
+                                if (data[0].equals("#RR") && data[1].toLowerCase().equals(Constants.TRUNCATEBUFFER) && number.equals(controllerNumber)) {
                                     buffer.truncateTable();
                                     sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
                                 }
                             }
+
                             // calling wave update function
-                            if (data.length == 6) {
-                                if (data[0].equals("#RT1") && number.equals(rain1number)) {
+                            //20 = #RT1;1498449295;404.57;392.96;259.12;76.22;298.55;434.10;138.91;147.43;44.58;58.08;395.71;328.99;517.80;220.08;177.25;82.12;204.13;44.38#
+                            for(int i = 0; i < data.length; ++i) {
+                                Log.d(TAG, i + ": " + data[i]);
+                            }
+                            //Check if no data was lost in transmission (only complete data will be processed)
+                            if (data.length == 20) {
+                                if (data[0].equals("#RT1")
+                                        && number.equals(rain1number)
+                                        && body.substring(0, 1).equals("#")
+                                        && body.substring(body.length() - 1).equals("#")) {
                                     buffer.insertRow(1, 1, body);
+                                    logandupload("loggerreceiver1.txt", body);
 //                                    buffer.insertRow(1, 2, body);
                                     sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
                                     sendMessageToUI(Constants.MSG_SET_RECEIVED_RAIN1, data[1]);
                                 }
                                 if (data[0].equals("#RT2") && number.equals(rain2number)) {
                                     buffer.insertRow(2, 1, body);
+                                    logandupload("loggerreceiver2.txt", body);
 //                                    buffer.insertRow(2, 2, body);
                                     sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
                                     sendMessageToUI(Constants.MSG_SET_RECEIVED_RAIN2, data[1]);
                                 }
                                 if (data[0].equals("#RT3") && number.equals(rain3number)) {
                                     buffer.insertRow(3, 1, body);
+                                    logandupload("loggerreceiver3.txt", body);
 //                                    buffer.insertRow(3, 2, body);
                                     sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
                                     sendMessageToUI(Constants.MSG_SET_RECEIVED_RAIN3, data[1]);
@@ -195,65 +232,43 @@ public class RainReceiverService extends Service {
         ArrayList<NameValuePair> postParameters = new ArrayList<NameValuePair>();
         ContentValues postParameters1 = new ContentValues();
         String sensorName = row[1];
+        String server = row[2];
         String message = row[3];
-        postParameters.add(new BasicNameValuePair("key", "3TkxeKi"));
-        postParameters.add(new BasicNameValuePair("table", "rain" + sensorName));
-        postParameters1.put("key", "3TkxeKi");
-        postParameters1.put("table", "rain" + sensorName);
+        postParameters.add(new BasicNameValuePair("data", message));
 
-        String[] text = message.split(";");
-        postParameters.add(new BasicNameValuePair("date_time", text[1]));
-        postParameters1.put("date_time", text[1]);
-
-        String[] snd = text[2].split(",");
-        for (int i = 0; i < 6; i++) {
-            postParameters.add(new BasicNameValuePair("snd" + String.valueOf(i+1), snd[i]));
-            postParameters1.put("snd" + String.valueOf(i + 1), snd[1]);
-        }
-
-        String[] sig = text[3].split(",");
-        for (int i = 0; i < 6; i++) {
-            postParameters.add(new BasicNameValuePair("sig" + String.valueOf(i+1), sig[i]));
-            postParameters1.put("sig" + String.valueOf(i + 1), sig[1]);
-        }
-
-        String[] dis = text[4].split(",");
-        for (int i = 0; i < 10; i++) {
-            postParameters.add(new BasicNameValuePair("dis" + String.valueOf(i+1), dis[i]));
-            postParameters1.put("dis" + String.valueOf(i + 1), dis[1]);
-        }
-
-        // http request
+        // http request, server number is here
         String result = "";
         String address = "";
-        if (Integer.parseInt(row[2]) == 1) {
-            address = server1;
+        if (Integer.parseInt(server) == 1) {
+            address = serverAddress;
         }
-        if (Integer.parseInt(row[2]) == 2) {
+        if (Integer.parseInt(server) == 2) {
             address = server2;
         }
+
         try {
             result = CustomHttpClient.executeHttpPost(address + '/' + Constants.INSERT_PHP, postParameters);
         } catch (final Exception e) {
             result = "FAIL";
         }
-        
+
+        String[] text = message.split(";");
         if (result.equals("SUCCESS")) {
             buffer.deleteRow(Integer.parseInt(row[0]));
             sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
-            if (row[1].equals("1")) {
+            if (sensorName.equals("1")) {
                 if (row[2].equals("1"))
                     sendMessageToUI(Constants.MSG_SET_SAVED_RAIN1_SERVER1, "Server 1 : " + text[1]);
                 else
                     sendMessageToUI(Constants.MSG_SET_SAVED_RAIN1_SERVER2, "Server 2 : " + text[1]);
             }
-            if (row[1].equals("2")) {
+            if (sensorName.equals("2")) {
                 if (row[2].equals("1"))
                     sendMessageToUI(Constants.MSG_SET_SAVED_RAIN2_SERVER1, "Server 1 : " + text[1]);
                 else
                     sendMessageToUI(Constants.MSG_SET_SAVED_RAIN2_SERVER2, "Server 2 : " + text[1]);
             }
-            if (row[1].equals("3")) {
+            if (sensorName.equals("3")) {
                 if (row[2].equals("1"))
                     sendMessageToUI(Constants.MSG_SET_SAVED_RAIN3_SERVER1, "Server 1 : " + text[1]);
                 else
@@ -281,5 +296,28 @@ public class RainReceiverService extends Service {
         logTimer.cancel();
         logTimer.purge();
         logTimer = null;
+    }
+
+    public void logandupload(String filename, String data){
+        Log.d(TAG, "logandupload:" + filename + ", " + data);
+        File dir = new File(android.os.Environment.getExternalStorageDirectory(),"rainsensorproject");
+        if(!dir.exists())
+        {
+            dir.mkdirs();
+        }
+        File f = new File(dir+File.separator+filename);
+        try
+        {
+            FileOutputStream fOut = new FileOutputStream(f);
+            OutputStreamWriter myOutWriter = new OutputStreamWriter(fOut);
+            myOutWriter.write(data);
+            myOutWriter.close();
+            fOut.close();
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+        }
+
     }
 }

@@ -24,7 +24,7 @@
             android:inputType="phone"
             android:ems="10"
             android:id="@+id/etMonitor"
-            android:hint="Please enter monitor no."
+            android:hint="Please enter controller no."
             android:layout_gravity="center_horizontal" />
 
         <TextView
@@ -237,7 +237,7 @@
         <EditText
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Please enter server address"
+            android:hint="Please enter server address http://www.server.com/"
             android:id="@+id/etServer"
             android:layout_gravity="center_horizontal" />
 
