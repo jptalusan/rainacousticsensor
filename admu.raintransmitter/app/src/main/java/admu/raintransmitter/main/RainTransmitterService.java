@@ -241,6 +241,7 @@ public class RainTransmitterService extends Service {
                     case Activity.RESULT_OK:
                         for (String[] sArr:
                              fData) {
+                            Log.d(TAG, "Deleting row: " + sArr[0]);
                             buffer.deleteRow(Integer.parseInt(sArr[0]));
                         }
                         break;
@@ -546,22 +547,22 @@ public class RainTransmitterService extends Service {
         msg += setupDate() + ";";
         msg += ftRmsDb.format(soundLevel) + ";#";
 
-        Log.d(TAG, "Path: " + android.os.Environment.getExternalStorageDirectory().toString());
-        File dir = new File(android.os.Environment.getExternalStorageDirectory(),"rainsensorproject");
-        String filename= "sentlogger.txt";
-        File f = new File(dir+File.separator+filename);
-        try
-        {
-            FileWriter fileWritter = new FileWriter(f,true);
-            BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
-            bufferWritter.write(ft.format(new Date()));
-            bufferWritter.write("  " + msg + "\n");
-            bufferWritter.close();
-        }
-        catch(Exception e)
-        {
-            e.printStackTrace();
-        }
+//        Log.d(TAG, "Path: " + android.os.Environment.getExternalStorageDirectory().toString());
+//        File dir = new File(android.os.Environment.getExternalStorageDirectory(),"rainsensorproject");
+//        String filename= "sentlogger.txt";
+//        File f = new File(dir+File.separator+filename);
+//        try
+//        {
+//            FileWriter fileWritter = new FileWriter(f,true);
+//            BufferedWriter bufferWritter = new BufferedWriter(fileWritter);
+//            bufferWritter.write(ft.format(new Date()));
+//            bufferWritter.write("  " + msg + "\n");
+//            bufferWritter.close();
+//        }
+//        catch(Exception e)
+//        {
+//            e.printStackTrace();
+//        }
 
         Log.d(TAG, "Server,msg,priority" + serverReceiverNumber + "," + msg + ",2");
         buffer.insertRow(serverReceiverNumber, msg, "2");
@@ -593,8 +594,8 @@ public class RainTransmitterService extends Service {
                     messages[i] = SmsMessage.createFromPdu((byte[]) pdus[i]);
                     String body = messages[i].getMessageBody();
                     String number = messages[i].getOriginatingAddress();
-                    Log.d(TAG,"Received SMS: " + number + ":" + body);
-                    Log.d(TAG,"Controller No." + controllerNumber);
+                    Log.i(TAG,"Received SMS: " + number + ":" + body);
+                    Log.i(TAG,"Controller No." + controllerNumber);
                     // check the msg
 //                    //DEBUGGING
 //                    body = "Start-WIFI";
@@ -604,9 +605,10 @@ public class RainTransmitterService extends Service {
                     if (data.length <= 0) {
                         this.abortBroadcast();
                     }
-                    if (number.equals(controllerNumber) && data[0].toLowerCase().equals("start")) {
+                    if (number.contains(controllerNumber) && data[0].toLowerCase().equals("start")) {
                         //TODO: Make sure multiple starts won't cause this to fail
                         if (!isWaitingToStart) {
+                            Log.i(TAG, "Starting");
                             buffer.truncateTable();
                             SimpleDateFormat ft = new SimpleDateFormat("HH:mm:ss", Locale.ENGLISH);
                             buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, time is " + ft.format(new Date()) + ", started recording."), "1");
@@ -616,15 +618,18 @@ public class RainTransmitterService extends Service {
                             Log.w(TAG, "Already sent start message, please wait, or send stop before starting again.");
                         }
                     }
-                    if (number.equals(controllerNumber) && data[0].toLowerCase().equals("stop")) {
+                    if (number.contains(controllerNumber) && data[0].toLowerCase().equals("stop")) {
+                        Log.i(TAG, "Stopping");
                         buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, stopped recording."), "1");
                         isRecording = false;
                         isWaitingToStart = false;
-                        recorderThread.stopRecording();
+                        if (recorderThread != null) {
+                            recorderThread.stopRecording();
+                        }
                         sendMessageToUI(Constants.MSG_SET_STATUS_OFF, "");
                         this.abortBroadcast();
                     }
-                    if (number.equals(controllerNumber) && data[0].toLowerCase().equals("truncate")) {
+                    if (number.contains(controllerNumber) && data[0].toLowerCase().equals("truncate")) {
                         if (data[1].toLowerCase().equals("buffer")) {
                             buffer.truncateTable();
                             buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, resetting buffer table."), "1");
