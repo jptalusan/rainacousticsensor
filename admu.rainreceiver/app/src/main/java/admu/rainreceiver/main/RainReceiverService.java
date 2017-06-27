@@ -156,7 +156,7 @@ public class RainReceiverService extends Service {
                         String body = sms.getMessageBody();
                         String number = sms.getOriginatingAddress();
 
-                        Log.d(TAG, "Message received: " + number + ": " + body);
+                        Log.i(TAG, "Message received: " + number + ": " + body);
                         // check the msg
                         if (body.substring(0,1).equals("#") && body.substring(body.length() - 1).equals("#")) {
                             String[] data = body.split(";");
@@ -176,24 +176,32 @@ public class RainReceiverService extends Service {
 //                            }
                             //Check if no data was lost in transmission (only complete data will be processed)
                             if (data.length == 20) {
+                                Log.i(TAG, "Data length is valid");
                                 if (data[0].equals("#RT1")
-                                        && number.equals(rain1number)
+                                        && number.contains(rain1number)
                                         && body.substring(0, 1).equals("#")
                                         && body.substring(body.length() - 1).equals("#")) {
+                                    Log.i(TAG, "Sending to buffer for processing.");
                                     buffer.insertRow(1, 1, body);
                                     logandupload("loggerreceiver1.txt", body);
 //                                    buffer.insertRow(1, 2, body);
                                     sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
                                     sendMessageToUI(Constants.MSG_SET_RECEIVED_RAIN1, data[1]);
                                 }
-                                if (data[0].equals("#RT2") && number.equals(rain2number)) {
+                                if (data[0].equals("#RT2")
+                                        && number.contains(rain2number)
+                                        && body.substring(0, 1).equals("#")
+                                        && body.substring(body.length() - 1).equals("#")) {
                                     buffer.insertRow(2, 1, body);
                                     logandupload("loggerreceiver2.txt", body);
 //                                    buffer.insertRow(2, 2, body);
                                     sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
                                     sendMessageToUI(Constants.MSG_SET_RECEIVED_RAIN2, data[1]);
                                 }
-                                if (data[0].equals("#RT3") && number.equals(rain3number)) {
+                                if (data[0].equals("#RT3")
+                                        && number.contains(rain3number)
+                                        && body.substring(0, 1).equals("#")
+                                        && body.substring(body.length() - 1).equals("#")) {
                                     buffer.insertRow(3, 1, body);
                                     logandupload("loggerreceiver3.txt", body);
 //                                    buffer.insertRow(3, 2, body);

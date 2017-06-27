@@ -30,9 +30,17 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class RainReceiverActivity extends AppCompatActivity {
@@ -63,17 +71,18 @@ public class RainReceiverActivity extends AppCompatActivity {
         editor = sharedPref.edit();
 
         // this will restart the app in case of a unexcepted crash
-//        final PendingIntent intent = PendingIntent.getActivity(RainReceiverActivity.this, 0,
-//                new Intent(getIntent()), PendingIntent.FLAG_CANCEL_CURRENT);
-//
-//        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
-//            @Override
-//            public void uncaughtException(Thread thread, final Throwable ex) {
-//                AlarmManager mgr = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
-//                mgr.set(AlarmManager.RTC, System.currentTimeMillis() + 2000, intent);
-//                System.exit(2);
-//            }
-//        });
+        final PendingIntent intent = PendingIntent.getActivity(RainReceiverActivity.this, 0,
+                new Intent(getIntent()), PendingIntent.FLAG_CANCEL_CURRENT);
+
+        Thread.setDefaultUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+            @Override
+            public void uncaughtException(Thread thread, final Throwable ex) {
+                writeError(ex);	// a trace of the error
+                AlarmManager mgr = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+                mgr.set(AlarmManager.RTC, System.currentTimeMillis() + 2000, intent);
+                System.exit(2);
+            }
+        });
 
         pm = (PowerManager)getSystemService(Context.POWER_SERVICE);
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "My wakelock");
@@ -138,7 +147,23 @@ public class RainReceiverActivity extends AppCompatActivity {
     public void onBackPressed() {
         //
     }
-    
+
+    private void writeError(Throwable data) {
+        try {
+            StringWriter sw = new StringWriter();
+            PrintWriter pw = new PrintWriter(sw);
+            data.printStackTrace(pw);
+            FileWriter out = new FileWriter(new File(Constants.SDLINK , "log.txt"), true);
+            SimpleDateFormat ft =  new SimpleDateFormat ("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH);
+            out.write("on " + ft.format(new Date()) + ", \n");
+            out.write(sw.toString());
+            out.close();
+        }
+        catch (IOException e) {
+            Log.e("Exception", "File write failed: " + e.toString());
+        }
+    }
+
     @SuppressLint("HandlerLeak")
     public class IncomingHandler extends Handler {
         @Override
