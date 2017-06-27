@@ -14,6 +14,9 @@ Version updated for Android Studio 3.0 and SDK26
 
 * Summary of set up
 * Configuration
+Unix time to date time in excel for PH/Manila:
+=(B2+28800)/(60*60*24)+"1/1/1970" where 28800 is offset for GMT+8
+
 * Dependencies
 * Database configuration
 * How to run tests
