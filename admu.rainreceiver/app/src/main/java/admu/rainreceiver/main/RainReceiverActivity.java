@@ -148,7 +148,7 @@ public class RainReceiverActivity extends AppCompatActivity {
         //
     }
 
-    private void writeError(Throwable data) {
+    public void writeError(Throwable data) {
         try {
             StringWriter sw = new StringWriter();
             PrintWriter pw = new PrintWriter(sw);

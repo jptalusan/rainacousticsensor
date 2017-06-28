@@ -475,22 +475,40 @@ public class RainTransmitterService extends Service {
                 if (isRecording) {
                     if (position < 10) {
                         sound[position] = recorderThread.getPower();
+
+//                        try {
+//                            audioData = setupDate() + "," + Double.toString(sound[position]);
+//                            audioLog = new FileWriter(audioLogFile, true);
+//                            audioLog.write(audioData + "\r\n");
+//                            audioLog.flush();
+//                            audioLog.close();
+//                        } catch (IOException e) {
+//                            Log.e(TAG, "GSM Recording Failed " + e.toString());
+//                        }
                         position++;
-                        }
+                    }
 
                     if (position == 10) {
                         position = 0;
                         try {
+                            audioLog = new FileWriter(audioLogFile, true);
                             double sumOfSoundLevel = 0.0;
                             for (double soundLevel:
                                  sound) {
                                 sumOfSoundLevel += soundLevel;
+                                if (soundLevel != 0.0) {
+                                    audioData = setupDate() + "," + Double.toString(soundLevel);
+                                    audioLog.write(audioData + "\r\n");
+                                }
                             }
-                            audioData = setupDate() + "," + Double.toString(sumOfSoundLevel);
-                            audioLog = new FileWriter(audioLogFile, true);
-                            audioLog.write(audioData + "\r\n");
+
                             audioLog.flush();
                             audioLog.close();
+//                            audioData = setupDate() + "," + Double.toString(sumOfSoundLevel);
+//                            audioLog = new FileWriter(audioLogFile, true);
+//                            audioLog.write(audioData + "\r\n");
+//                            audioLog.flush();
+//                            audioLog.close();
 
                             final double soundLevelTemp = sumOfSoundLevel;
                             new Thread(new Runnable() {

@@ -155,12 +155,12 @@ public class RainReceiverService extends Service {
                         SmsMessage sms = SmsMessage.createFromPdu((byte[])o);
                         String body = sms.getMessageBody();
                         String number = sms.getOriginatingAddress();
-
+                        logandupload("loggerreceiver0.txt", body, true);
                         Log.i(TAG, "Message received: " + number + ": " + body);
                         // check the msg
                         if (body.substring(0,1).equals("#") && body.substring(body.length() - 1).equals("#")) {
                             String[] data = body.split(";");
-
+                            Log.i(TAG, "Ends are valid: " + body);
                             // truncate the buffer table
                             if (data.length == 3) {
                                 if (data[0].equals("#RR") && data[1].toLowerCase().equals(Constants.TRUNCATEBUFFER) && number.equals(controllerNumber)) {
@@ -178,32 +178,26 @@ public class RainReceiverService extends Service {
                             if (data.length == 20) {
                                 Log.i(TAG, "Data length is valid");
                                 if (data[0].equals("#RT1")
-                                        && number.contains(rain1number)
-                                        && body.substring(0, 1).equals("#")
-                                        && body.substring(body.length() - 1).equals("#")) {
+                                        && number.contains(rain1number)) {
                                     Log.i(TAG, "Sending to buffer for processing.");
                                     buffer.insertRow(1, 1, body);
-                                    logandupload("loggerreceiver1.txt", body);
+                                    logandupload("loggerreceiver1.txt", body, true);
 //                                    buffer.insertRow(1, 2, body);
                                     sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
                                     sendMessageToUI(Constants.MSG_SET_RECEIVED_RAIN1, data[1]);
                                 }
                                 if (data[0].equals("#RT2")
-                                        && number.contains(rain2number)
-                                        && body.substring(0, 1).equals("#")
-                                        && body.substring(body.length() - 1).equals("#")) {
+                                        && number.contains(rain2number)) {
                                     buffer.insertRow(2, 1, body);
-                                    logandupload("loggerreceiver2.txt", body);
+                                    logandupload("loggerreceiver2.txt", body, true);
 //                                    buffer.insertRow(2, 2, body);
                                     sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
                                     sendMessageToUI(Constants.MSG_SET_RECEIVED_RAIN2, data[1]);
                                 }
                                 if (data[0].equals("#RT3")
-                                        && number.contains(rain3number)
-                                        && body.substring(0, 1).equals("#")
-                                        && body.substring(body.length() - 1).equals("#")) {
+                                        && number.contains(rain3number)) {
                                     buffer.insertRow(3, 1, body);
-                                    logandupload("loggerreceiver3.txt", body);
+                                    logandupload("loggerreceiver3.txt", body, true);
 //                                    buffer.insertRow(3, 2, body);
                                     sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
                                     sendMessageToUI(Constants.MSG_SET_RECEIVED_RAIN3, data[1]);
@@ -249,6 +243,8 @@ public class RainReceiverService extends Service {
         try {
             result = CustomHttpClient.executeHttpPost(address + '/' + Constants.INSERT_PHP, postParameters);
         } catch (final Exception e) {
+            long timeInSeconds = System.currentTimeMillis() / 1000;
+            logandupload("uploaderrorlog.txt", Long.toString(timeInSeconds) + ":" + e.toString(), false);
             result = "FAIL";
         }
         Log.d(TAG, "Result: " + result);
@@ -300,7 +296,7 @@ public class RainReceiverService extends Service {
         logTimer = null;
     }
 
-    public void logandupload(String filename, String data){
+    public void logandupload(String filename, String data, boolean append){
         Log.d(TAG, "logandupload:" + filename + ", " + data);
         File dir = new File(android.os.Environment.getExternalStorageDirectory(),"rainsensorproject");
         if(!dir.exists())
@@ -310,9 +306,9 @@ public class RainReceiverService extends Service {
         File f = new File(dir+File.separator+filename);
         try
         {
-            FileOutputStream fOut = new FileOutputStream(f);
+            FileOutputStream fOut = new FileOutputStream(f, append);
             OutputStreamWriter myOutWriter = new OutputStreamWriter(fOut);
-            myOutWriter.write(data);
+            myOutWriter.write(data + "\n");
             myOutWriter.close();
             fOut.close();
         }
