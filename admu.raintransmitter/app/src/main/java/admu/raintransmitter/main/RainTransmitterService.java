@@ -24,7 +24,6 @@ import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.widget.Toast;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
@@ -443,7 +442,7 @@ public class RainTransmitterService extends Service {
 
                 if (isWaitingToStart) {
                     if (start_time.equals(hms.format(new Date()))) {
-                        recorderThread = new RecorderThread();
+                        recorderThread = new RecorderThread(audioFileName);
                         recorderThread.start();
                         isRecording = true;
                         isWaitingToStart = false;
@@ -524,7 +523,7 @@ public class RainTransmitterService extends Service {
                 }
                 if (isWaitingToStart) {
                     if (start_time.equals(hms.format(new Date()))) {
-                        recorderThread = new RecorderThread();
+                        recorderThread = new RecorderThread(audioFileName);
                         recorderThread.start();
                         isRecording = true;
                         isWaitingToStart = false;

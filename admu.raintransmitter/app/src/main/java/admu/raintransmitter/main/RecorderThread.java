@@ -2,7 +2,12 @@ package admu.raintransmitter.main;
 
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.os.Environment;
 import android.util.Log;
+
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 public class RecorderThread extends Thread {
     private static final String TAG = "RecorderThread";
@@ -10,8 +15,10 @@ public class RecorderThread extends Thread {
     private boolean isRecording;
     private byte[] buffer;
     private double mRmsSmoothed = 0;
-
-    public RecorderThread(){
+    private FileOutputStream os = null;
+    private String audioFileName = "";
+    public RecorderThread(String fileName){
+        audioFileName = fileName;
         int recBufSize = AudioRecord.getMinBufferSize(
                 Constants.sampleRate,
                 Constants.channelConfiguration,
@@ -36,11 +43,21 @@ public class RecorderThread extends Thread {
         } catch (Exception e) {
             e.printStackTrace();
         }
+
+        String filePath = Environment.getExternalStorageDirectory().getPath() + "/" + audioFileName + "_pcm.pcm";
+        try {
+            os = new FileOutputStream(filePath);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
     }
 
     public void stopRecording(){
         try{
-            audioRecord.stop();
+            if (audioRecord != null)
+                audioRecord.stop();
+
+            os.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -48,6 +65,11 @@ public class RecorderThread extends Thread {
 
     public double getPower(){
         audioRecord.read(buffer, 0, Constants.frameByteSize);
+        try {
+            os.write(buffer, 0, Constants.frameByteSize);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         /*
          * Noise level meter begins here
          */
