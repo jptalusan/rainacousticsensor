@@ -63,6 +63,7 @@ public class RecorderThread extends Thread {
         }
     }
 
+    //Problem with emulator must set framerate to 8000, https://stackoverflow.com/questions/13583827/audiorecord-writing-pcm-file
     public double getPower(){
         audioRecord.read(buffer, 0, Constants.frameByteSize);
         try {
@@ -86,4 +87,6 @@ public class RecorderThread extends Thread {
     public void run() {
         startRecording();
     }
+
+
 }
