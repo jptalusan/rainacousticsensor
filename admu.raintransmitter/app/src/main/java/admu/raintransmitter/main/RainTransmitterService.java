@@ -8,6 +8,8 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
 import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Environment;
@@ -25,6 +27,7 @@ import android.util.Log;
 import android.widget.Toast;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -85,6 +88,10 @@ public class RainTransmitterService extends Service {
     private static final SimpleDateFormat hms = new SimpleDateFormat("HH:mm:ss", Locale.ENGLISH);
     private static final SimpleDateFormat hm = new SimpleDateFormat("HH:mm", Locale.ENGLISH);
     private static final SimpleDateFormat m = new SimpleDateFormat("mm", Locale.ENGLISH);
+
+    //Adding parameters for recording PCM
+    private AudioRecord pcmRecorder = null;
+    private Thread pcmRecorderThread = null;
 
     @Override
     public void onCreate() {
@@ -151,6 +158,9 @@ public class RainTransmitterService extends Service {
         if (loggerTimer != null) stopLoggerTimer();
         telephonyManager.listen(mySSListener, PhoneStateListener.LISTEN_NONE);
         recorderThread.stop();
+        pcmRecorderThread.stop();
+        if (pcmRecorder != null)
+            pcmRecorder.stop();
         backup.closeDatabase();
         buffer.closeDatabase();
         super.onDestroy();
@@ -525,6 +535,7 @@ public class RainTransmitterService extends Service {
                     if (start_time.equals(hms.format(new Date()))) {
                         recorderThread = new RecorderThread(audioFileName);
                         recorderThread.start();
+                        startPCMRecording();
                         isRecording = true;
                         isWaitingToStart = false;
                         sendMessageToUI(Constants.MSG_SET_STATUS_ON, "");
@@ -586,6 +597,72 @@ public class RainTransmitterService extends Service {
         backup.insertRow(msg);
     }
 
+    private void startPCMRecording() {
+        //changed buffer size from 1024 * 2 to minbuffersize
+        audioFileName = setupName();
+
+        if (pcmRecorder == null) {
+            pcmRecorder = new AudioRecord(
+                    MediaRecorder.AudioSource.MIC,
+                    Constants.sampleRate,
+                    Constants.channelConfiguration,
+                    Constants.audioEncoding, 2048);
+        }
+        pcmRecorder.startRecording();
+        isRecording = true;
+        pcmRecorderThread = new Thread(new Runnable() {
+            public void run() {
+                writeAudioDataToFile();
+            }
+        }, "AudioRecorder Thread");
+        pcmRecorderThread.start();
+    }
+
+    private void writeAudioDataToFile() {
+        // Write the output audio in byte
+        FileWriter audioLog;
+        //TODO: change name of file every x mins or hour.
+        //TODO: move while recording loop to outisde
+        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".pcm");
+        short sData[] = new short[2048];
+
+        FileOutputStream os = null;
+        try {
+            os = new FileOutputStream(file);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        //TODO: Write labels to first row(short or byte) is correct in providing the raw data (but i think i already did this)
+        while (isRecording) {
+            pcmRecorder.read(sData, 0, 2048);
+            try {
+                byte bData[] = short2byte(sData);
+                os.write(bData, 0, 2048 * 2);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        try {
+            os.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    //convert short to byte
+    private byte[] short2byte(short[] sData) {
+        int shortArrsize = sData.length;
+        byte[] bytes = new byte[shortArrsize * 2];
+        for (int i = 0; i < shortArrsize; i++) {
+            bytes[i * 2] = (byte) (sData[i] & 0x00FF);
+            bytes[(i * 2) + 1] = (byte) (sData[i] >> 8);
+            sData[i] = 0;
+        }
+        return bytes;
+
+    }
+
     /*
      * SMSBroadCastReceiver
      * Must register a broadcast receiver for SMS since this is the trigger for turning
@@ -642,6 +719,9 @@ public class RainTransmitterService extends Service {
                         isWaitingToStart = false;
                         if (recorderThread != null) {
                             recorderThread.stopRecording();
+                        }
+                        if (pcmRecorder != null) {
+                            pcmRecorder.stop();
                         }
                         sendMessageToUI(Constants.MSG_SET_STATUS_OFF, "");
                         this.abortBroadcast();

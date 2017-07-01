@@ -44,34 +44,28 @@ public class RecorderThread extends Thread {
             e.printStackTrace();
         }
 
-        String filePath = Environment.getExternalStorageDirectory().getPath() + "/" + audioFileName + "_pcm.pcm";
-        try {
-            os = new FileOutputStream(filePath);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
+//        String filePath = Environment.getExternalStorageDirectory().getPath() + "/" + audioFileName + "_pcm.pcm";
+//        try {
+//            os = new FileOutputStream(filePath);
+//        } catch (FileNotFoundException e) {
+//            e.printStackTrace();
+//        }
     }
 
     public void stopRecording(){
-        try{
-            if (audioRecord != null)
-                audioRecord.stop();
-
-            os.close();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        if (audioRecord != null)
+            audioRecord.stop();
     }
 
     //Problem with emulator must set framerate to 8000, https://stackoverflow.com/questions/13583827/audiorecord-writing-pcm-file
     //TODO: Rename, this is not dB yet.
     public double getPower(){
         audioRecord.read(buffer, 0, Constants.frameByteSize);
-        try {
-            os.write(buffer, 0, Constants.frameByteSize);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+//        try {
+//            os.write(buffer, 0, Constants.frameByteSize);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
         /*
          * Noise level meter begins here
          */
