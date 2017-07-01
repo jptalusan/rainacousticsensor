@@ -93,7 +93,7 @@ public class SQLiteBuffer {
 
     public void insertRow(String number, String message, String priority){
         ContentValues values = new ContentValues();
-        Log.d(TAG, "Insert: " + number + "," + message + "," + priority);
+        Log.d("EXTRA", "Insert: " + number + "," + message + "," + priority);
         values.put(COLnumber, number);
         values.put(COLmessage, message);
         values.put(COLpriority, priority);
