@@ -22,7 +22,8 @@ public class Constants {
     public static final int MSG_SET_SAVED_RAIN3_SERVER2 = 11;
     public static final int LOG_INTERVAL = 5 * 1000; // in milliseconds
     public static final String SMS_EXTRA_NAME = "pdus";
-    public static String directory = "/rainsensorproject/";
+    public static final String directoryName = "rainsensorproject-rx";
+    public static String directory = "/" + directoryName + "/";
     public static File SDLINK = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + directory);
 
     public static String INSERT_PHP = "insert.php";

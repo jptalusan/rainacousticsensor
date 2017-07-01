@@ -21,7 +21,8 @@ public class Constants {
     public static final int LOGGER_INTERVAL = 25000; // in milliseconds
 
     // create storage elements
-    public static String directory = "/rainsensorproject/";
+    public static String directoryName = "rainsensorproject-tx";
+    public static String directory = "/" + directoryName + "/";
     public static File SDLINK = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + directory);
     public static String WAKELOCK = "My wakelock";
 
@@ -40,6 +41,6 @@ public class Constants {
     // Recorder Thread
     static int channelConfiguration = AudioFormat.CHANNEL_IN_MONO;
     static int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
-    static int sampleRate = 44100; //44100;
+    static int sampleRate = 8000;//44100; //44100;
     static int frameByteSize = 2048; // for 1024 fft size (16bit sample size)
 }

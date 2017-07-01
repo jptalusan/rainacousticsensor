@@ -90,7 +90,7 @@ public class RainTransmitterService extends Service {
     public void onCreate() {
         super.onCreate();
 
-        File dir =new File(android.os.Environment.getExternalStorageDirectory(),"rainsensorproject");
+        File dir =new File(android.os.Environment.getExternalStorageDirectory(),Constants.directoryName);
         if(!dir.exists())
         {
             dir.mkdirs();

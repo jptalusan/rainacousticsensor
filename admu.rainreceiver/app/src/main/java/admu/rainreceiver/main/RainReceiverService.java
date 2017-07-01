@@ -55,7 +55,7 @@ public class RainReceiverService extends Service {
      public void onCreate() {
         super.onCreate();
 
-        File dir =new File(android.os.Environment.getExternalStorageDirectory(),"rainsensorproject");
+        File dir =new File(android.os.Environment.getExternalStorageDirectory(),Constants.directoryName);
         if(!dir.exists())
         {
             dir.mkdirs();
@@ -176,7 +176,8 @@ public class RainReceiverService extends Service {
 //                            }
                             //Check if no data was lost in transmission (only complete data will be processed)
                             if (data.length == 20) {
-                                Log.i(TAG, "Data length is valid");
+                                Log.i(TAG, "Data length is valid: " + data[0]);
+                                Log.i(TAG, "number3: " + rain3number);
                                 if (data[0].equals("#RT1")
                                         && number.contains(rain1number)) {
                                     Log.i(TAG, "Sending to buffer for processing.");
@@ -233,20 +234,25 @@ public class RainReceiverService extends Service {
 
         SharedPreferences sharedPref = getApplicationContext().getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE);
         serverAddress = sharedPref.getString(Constants.SERVER1, "");
-        if (Integer.parseInt(server) == 1) {
-            address = serverAddress;
-        }
-        if (Integer.parseInt(server) == 2) {
-            address = server2;
-        }
+        if (isNumeric(server)) {
+            if (Integer.parseInt(server) == 1) {
+                address = serverAddress;
+            }
+            if (Integer.parseInt(server) == 2) {
+                address = server2;
+            }
 
-        try {
-            result = CustomHttpClient.executeHttpPost(address + '/' + Constants.INSERT_PHP, postParameters);
-        } catch (final Exception e) {
-            long timeInSeconds = System.currentTimeMillis() / 1000;
-            logandupload("uploaderrorlog.txt", Long.toString(timeInSeconds) + ":" + e.toString(), false);
+            try {
+                result = CustomHttpClient.executeHttpPost(address + '/' + Constants.INSERT_PHP, postParameters);
+            } catch (final Exception e) {
+                long timeInSeconds = System.currentTimeMillis() / 1000;
+                logandupload("uploaderrorlog.txt", Long.toString(timeInSeconds) + ":" + e.toString(), false);
+                result = "FAIL";
+            }
+        } else {
             result = "FAIL";
         }
+
         Log.d(TAG, "Result: " + result);
 
         String[] text = message.split(";");
@@ -298,7 +304,7 @@ public class RainReceiverService extends Service {
 
     public void logandupload(String filename, String data, boolean append){
         Log.d(TAG, "logandupload:" + filename + ", " + data);
-        File dir = new File(android.os.Environment.getExternalStorageDirectory(),"rainsensorproject");
+        File dir = new File(android.os.Environment.getExternalStorageDirectory(),Constants.directoryName);
         if(!dir.exists())
         {
             dir.mkdirs();
@@ -317,5 +323,9 @@ public class RainReceiverService extends Service {
             e.printStackTrace();
         }
 
+    }
+
+    public boolean isNumeric(String s) {
+        return s != null && s.matches("[-+]?\\d*\\.?\\d+");
     }
 }
