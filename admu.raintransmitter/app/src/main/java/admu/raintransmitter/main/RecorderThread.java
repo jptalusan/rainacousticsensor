@@ -16,9 +16,10 @@ public class RecorderThread extends Thread {
     private boolean isRecording;
     private byte[] buffer;
     private double mRmsSmoothed = 0;
+    public int recBufSize = 0;
 
     public RecorderThread(){
-        int recBufSize = AudioRecord.getMinBufferSize(
+        recBufSize = AudioRecord.getMinBufferSize(
                 Constants.sampleRate,
                 Constants.channelConfiguration,
                 Constants.audioEncoding); // need to be larger than size of a frame
@@ -28,7 +29,8 @@ public class RecorderThread extends Thread {
                 MediaRecorder.AudioSource.MIC,
                 Constants.sampleRate,
                 Constants.channelConfiguration,
-                Constants.audioEncoding, recBufSize);
+                Constants.audioEncoding,
+                2048);
         buffer = new byte[Constants.frameByteSize];
     }
 

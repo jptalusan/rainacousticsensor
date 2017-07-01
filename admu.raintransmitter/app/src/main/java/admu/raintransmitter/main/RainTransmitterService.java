@@ -569,6 +569,7 @@ public class RainTransmitterService extends Service {
 
     //Writing PCM
     private void startPCMRecording() {
+
         pcmRecorderThread = new Thread(new Runnable() {
             public void run() {
                 writeAudioDataToFile();
@@ -589,7 +590,6 @@ public class RainTransmitterService extends Service {
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
-
         //TODO: Write labels to first row(short or byte) is correct in providing the raw data (but i think i already did this)
         while (isRecording) {
             recorderThread.audioRecord.read(sData, 0, Constants.frameByteSize);
