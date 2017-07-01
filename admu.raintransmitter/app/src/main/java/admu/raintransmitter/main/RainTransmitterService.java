@@ -91,10 +91,10 @@ public class RainTransmitterService extends Service {
     private static final SimpleDateFormat hm = new SimpleDateFormat("HH:mm", Locale.ENGLISH);
     private static final SimpleDateFormat m = new SimpleDateFormat("mm", Locale.ENGLISH);
 
-    //Writing PCM
-    private File file = null;
-    private FileOutputStream os = null;
+    //Adding parameters for recording PCM
+    private AudioRecord pcmRecorder = null;
     private Thread pcmRecorderThread = null;
+
 
     @Override
     public void onCreate() {
@@ -569,24 +569,28 @@ public class RainTransmitterService extends Service {
 
     //Writing PCM
     private void startPCMRecording() {
-        file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".pcm");
-        os = null;
         pcmRecorderThread = new Thread(new Runnable() {
             public void run() {
                 writeAudioDataToFile();
             }
-        }, "PCMAudioRecorder Thread");
+        }, "AudioRecorder Thread");
         pcmRecorderThread.start();
     }
 
     private void writeAudioDataToFile() {
+        //TODO: change name of file every x mins or hour.
+        //TODO: move while recording loop to outisde
+        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".pcm");
         short sData[] = new short[Constants.frameByteSize];
 
+        FileOutputStream os = null;
         try {
             os = new FileOutputStream(file);
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
+
+        //TODO: Write labels to first row(short or byte) is correct in providing the raw data (but i think i already did this)
         while (isRecording) {
             recorderThread.audioRecord.read(sData, 0, Constants.frameByteSize);
             try {
@@ -613,49 +617,10 @@ public class RainTransmitterService extends Service {
             sData[i] = 0;
         }
         return bytes;
-
     }
     //End of Writing PCM
 
-    //TODO: Replace, super duper hack, problem with audio record status -38 after subsequent recordings (2nd)
-    public static void doRestart(Context c) {
-        try {
-            //check if the context is given
-            if (c != null) {
-                //fetch the packagemanager so we can get the default launch activity
-                // (you can replace this intent with any other activity if you want
-                PackageManager pm = c.getPackageManager();
-                //check if we got the PackageManager
-                if (pm != null) {
-                    //create the intent with the default start activity for your application
-                    Intent mStartActivity = pm.getLaunchIntentForPackage(
-                            c.getPackageName()
-                    );
-                    if (mStartActivity != null) {
-                        mStartActivity.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                        //create a pending intent so the application is restarted after System.exit(0) was called.
-                        // We use an AlarmManager to call this intent in 100ms
-                        int mPendingIntentId = 223344;
-                        PendingIntent mPendingIntent = PendingIntent
-                                .getActivity(c, mPendingIntentId, mStartActivity,
-                                        PendingIntent.FLAG_CANCEL_CURRENT);
-                        AlarmManager mgr = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
-                        mgr.set(AlarmManager.RTC, System.currentTimeMillis() + 100, mPendingIntent);
-                        //kill the application
-                        System.exit(0);
-                    } else {
-                        Log.e(TAG, "Was not able to restart application, mStartActivity null");
-                    }
-                } else {
-                    Log.e(TAG, "Was not able to restart application, PM null");
-                }
-            } else {
-                Log.e(TAG, "Was not able to restart application, Context null");
-            }
-        } catch (Exception ex) {
-            Log.e(TAG, "Was not able to restart application");
-        }
-    }
+
 
     /*
      * SMSBroadCastReceiver
@@ -702,21 +667,14 @@ public class RainTransmitterService extends Service {
                     }
                     if (number.contains(controllerNumber) && data[0].toLowerCase().equals("stop")) {
                         buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, stopped recording."), "1");
-                        sendMessageToUI(Constants.MSG_SET_STATUS_OFF, "");
-                        isWaitingToStart = false;
+                        Log.i(TAG, "Stopping..");
                         isRecording = false;
-
-                        if (pcmRecorderThread != null)
-                            pcmRecorderThread.interrupt();
-
-                        if (recorderThread != null) {
+                        isWaitingToStart = false;
+                        if (recorderThread != null)
                             recorderThread.stopRecording();
-                            recorderThread.interrupt();
-                        }
-                        this.abortBroadcast();
 
-                        //HACK!
-                        doRestart(getApplicationContext());
+                        sendMessageToUI(Constants.MSG_SET_STATUS_OFF, "");
+                        this.abortBroadcast();
                     }
                     if (number.contains(controllerNumber) && data[0].toLowerCase().equals("truncate")) {
                         if (data[1].toLowerCase().equals("buffer")) {
