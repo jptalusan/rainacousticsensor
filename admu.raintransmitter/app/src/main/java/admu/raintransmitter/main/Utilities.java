@@ -32,7 +32,15 @@ public class Utilities {
     }
 
     static double roundDown(double d, int places) {
-        return Math.round(d * (Math.pow(10, places)) / Math.pow(10, places));
+        return Math.round(d * Math.pow(10, places)) / Math.pow(10, places);
+    }
+
+    static int computeNumberOfSamplesPerText(double sampleRate, double bufferSize) {
+        Log.d(TAG, "computeNumberOfSamplesPerText()" + sampleRate  + "," + bufferSize);
+        double temp = 0.0;
+        bufferSize /= 2; //IF 16 BIT PCM
+        temp = bufferSize / sampleRate * 1000;
+        return (int)(1000 / temp);
     }
 
     public static void doRestart(Context c) {

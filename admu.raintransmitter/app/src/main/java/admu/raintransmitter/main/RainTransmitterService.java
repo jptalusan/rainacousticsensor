@@ -59,10 +59,8 @@ public class RainTransmitterService extends Service {
     private boolean isWaitingToStart = false;
     private boolean isPowerProblem = false;
     private String start_time = null;
-    private double[] sound = new double[10];
-    private double[] signal = new double[10];
+    private double[] sound = null;
     private int position = 0;
-
     // timer for logging and sampling
     private Timer samplerTimer = null ;
     private Timer loggerTimer = null ;
@@ -103,6 +101,7 @@ public class RainTransmitterService extends Service {
     private Timer iterateLoggers = null;
     private boolean hasStartedLogging = false;
     private long timeToStart = 0;
+    private int numberOfSamples = 0;
 
     @Override
     public void onCreate() {
@@ -355,7 +354,7 @@ public class RainTransmitterService extends Service {
             sendMessageToUI(Constants.MSG_SET_MODE_GSM, "");
 
             sound = new double[Constants.SAMPLES];
-            signal = new double[Constants.SAMPLES];
+//            signal = new double[Constants.SAMPLES];
             position = 0;
             buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, I'll start recording at : " + convertMillisToTimeFormat(timeToStart)), "1");
         }
@@ -526,20 +525,50 @@ public class RainTransmitterService extends Service {
 
                 recorderThread = new RecorderThread();
                 recorderThread.start();
-                isRecording = true;
+                //Not yet working correctly
+//                numberOfSamples = Utilities.computeNumberOfSamplesPerText(Constants.sampleRate, recorderThread.recBufSize);
+                numberOfSamples = 8;
+                Log.d(TAG, "Number of samples per sec: " + numberOfSamples);
+
                 isWaitingToStart = false;
+                try {
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                isRecording = true;
+
                 sendMessageToUI(Constants.MSG_SET_STATUS_ON, "");
             }
         }
 
         while (isRecording) {
             byte sData[] = new byte[Constants.frameByteSize];
+            sound = new double[numberOfSamples];
             // gets the voice output from microphone to byte format
             recorderThread.audioRecord.read(sData, 0, Constants.frameByteSize);
             try {
                 //TODO: Add array here to limit amount of captured data if it the sampling rate is too high
                 double out5 = Utilities.getPower(sData);
                 String audioData = setupDate() + "," + Utilities.roundDown(out5, 3);
+                if (position < numberOfSamples) {
+                    sound[position] = out5;
+                    position++;
+                }
+                if (position == numberOfSamples) {
+                    double total = 0;
+                    for (int i = 0; i < numberOfSamples; ++i) {
+                        total += sound[i];
+                    }
+                    final double totalTemp = total;
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            processAndSend(Utilities.roundDown(totalTemp, 3));
+                        }
+                    }).start();
+                    position = 0;
+                }
                 audioLog.write(audioData + "\r\n");
                 os.write(sData, 0, Constants.frameByteSize);
             } catch (IOException e) {
@@ -579,9 +608,7 @@ public class RainTransmitterService extends Service {
      */
     //TODO: Concatenate 8-10 data points per text (equivalent to 10 seconds) or 140 characters. which ever comes first?
     public void processAndSend(double soundLevel) {
-        Log.d("EXTRA", "processAndSend()");
         // SEND //
-        SimpleDateFormat ft =  new SimpleDateFormat ("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH);
         String msg = "#" + Constants.SENSOR + ";";
         msg += setupDate() + ";";
         msg += ftRmsDb.format(soundLevel) + ";#";

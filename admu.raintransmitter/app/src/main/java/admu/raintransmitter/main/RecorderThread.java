@@ -9,7 +9,6 @@ public class RecorderThread extends Thread {
     private static final String TAG = "RecorderThread";
     public AudioRecord audioRecord;
     private boolean isRecording;
-    private byte[] buffer;
     private double mRmsSmoothed = 0;
     public int recBufSize = 0;
 
@@ -26,7 +25,6 @@ public class RecorderThread extends Thread {
                 Constants.channelConfiguration,
                 Constants.audioEncoding,
                 recBufSize);
-        buffer = new byte[Constants.frameByteSize];
     }
 
     public boolean isRecording(){
