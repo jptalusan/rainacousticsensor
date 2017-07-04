@@ -30,7 +30,7 @@ public class RecorderThread extends Thread {
                 Constants.sampleRate,
                 Constants.channelConfiguration,
                 Constants.audioEncoding,
-                2048);
+                recBufSize);
         buffer = new byte[Constants.frameByteSize];
     }
 
@@ -52,21 +52,6 @@ public class RecorderThread extends Thread {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    public double getPower(){
-        audioRecord.read(buffer, 0, Constants.frameByteSize);
-        /*
-         * Noise level meter begins here
-         */
-        // Compute the RMS value. (Note that this does not remove DC).
-        double rms = 0;
-        for (byte b : buffer) {
-            rms += b * b;
-        }
-        double out = Math.sqrt(rms / buffer.length);
-        Log.d("EXTRA", "Power: " + out);
-        return out;
     }
 
     public void run() {

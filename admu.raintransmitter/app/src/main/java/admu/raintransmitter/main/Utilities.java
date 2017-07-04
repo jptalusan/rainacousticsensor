@@ -16,6 +16,21 @@ import android.util.Log;
 
 public class Utilities {
     private static final String TAG = "Utilities";
+
+    static double getPower(byte[] buffer){
+        /*
+         * Noise level meter begins here
+         */
+        // Compute the RMS value. (Note that this does not remove DC).
+        double rms = 0;
+        for (byte b : buffer) {
+            rms += b * b;
+        }
+        double out = Math.sqrt(rms / buffer.length);
+        Log.d("EXTRA", "Power: " + out);
+        return out;
+    }
+
     public static void doRestart(Context c) {
         try {
             //check if the context is given

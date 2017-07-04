@@ -34,6 +34,7 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.sql.Time;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -95,6 +96,10 @@ public class RainTransmitterService extends Service {
     private AudioRecord pcmRecorder = null;
     private Thread pcmRecorderThread = null;
 
+    private Thread recordingThread = null;
+    private File file = null;
+    private FileOutputStream os = null;
+    private Timer iterateLoggers = null;
 
     @Override
     public void onCreate() {
@@ -157,8 +162,11 @@ public class RainTransmitterService extends Service {
     @Override
     public void onDestroy() {
         wakeLock.release();
-        if (samplerTimer != null) stopSamplerTimer();
-        if (loggerTimer != null) stopLoggerTimer();
+        if (samplerTimer != null)
+            stopSamplerTimer();
+        if (loggerTimer != null)
+            stopLoggerTimer();
+        stopIterateLoggerTimer();
         telephonyManager.listen(mySSListener, PhoneStateListener.LISTEN_NONE);
         recorderThread.stopRecording();
         recorderThread.stop();
@@ -416,7 +424,6 @@ public class RainTransmitterService extends Service {
      * Why is this only for WIFI and not GSM?
      */
     public void  startModeTimer() {
-        samplerTimer = null;
         samplerTimer = new Timer();
         audioFileName = setupName() + "Audio";
         audioLogFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".csv");
@@ -432,7 +439,7 @@ public class RainTransmitterService extends Service {
                     try {
                         while (currentTime < stopTime + 1) {
                             double snd = 0;
-                            snd = recorderThread.getPower();
+//                            snd = recorderThread.getPower();
                             int sig = signalStrength;
                             audioData = setupDate() + "," + Double.toString(snd) + ",dB," + Integer.toString(sig) + ",dBm";
                             Log.w(TAG, "Signal Level:" + Integer.toString(sig));
@@ -470,66 +477,78 @@ public class RainTransmitterService extends Service {
      */
     //TODO: This gets the sound level power 10 times a second (10Hz)
     public void startSamplerTimer(){
-        samplerTimer = null;
-        samplerTimer = new Timer();
-        audioFileName = setupName() + "Audio";
+        audioFileName = setupName() + "-Tx";
+        iterateLoggers = new Timer();
+//        iterateLoggers.scheduleAtFixedRate(new TimerTask() {
+//            @Override
+//            public void run() {
+//                iterateLoggingFiles();
+//            }
+//        }, 0, Constants.DEFAULT_LOGGER_DURATION);
+
+        recordingThread = new Thread(new Runnable() {
+            public void run() {
+                captureAudioDataThread();
+            }
+        }, "AudioRecorder Thread");
+        recordingThread.start();
+    }
+
+    private void iterateLoggingFiles() {
+        Log.d(TAG, "iterateLoggingFiles()");
         audioLogFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".csv");
         try {
             audioLogFile.createNewFile();
+            audioLog = new FileWriter(audioLogFile, true);
         } catch (IOException ex) {
             throw new IllegalStateException("Failed to create " + audioLog.toString());
         }
 
-        samplerTimer.scheduleAtFixedRate(new TimerTask(){
-            @Override
-            public void run() {
-                if (isRecording) {
-                    if (position < 10) {
-                        sound[position] = recorderThread.getPower();
-                        position++;
-                    }
+        file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".pcm");
 
-                    if (position == 10) {
-                        position = 0;
-                        try {
-                            audioLog = new FileWriter(audioLogFile, true);
-                            double sumOfSoundLevel = 0.0;
-                            for (double soundLevel:
-                                 sound) {
-                                sumOfSoundLevel += soundLevel;
-                                if (soundLevel != 0.0) {
-                                    audioData = setupDate() + "," + Double.toString(soundLevel);
-                                    audioLog.write(audioData + "\r\n");
-                                }
-                            }
+        os = null;
+        try {
+            os = new FileOutputStream(file);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
 
-                            audioLog.flush();
-                            audioLog.close();
-
-                            final double soundLevelTemp = sumOfSoundLevel;
-                            new Thread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    processAndSend(soundLevelTemp);
-                                }
-                            }).start();
-                        } catch (IOException e) {
-                            Log.e(TAG, "GSM Recording Failed " + e.toString());
-                        }
-                    }
-                }
-                if (isWaitingToStart) {
-                    if (start_time.equals(hms.format(new Date()))) {
-                        recorderThread = new RecorderThread();
-                        recorderThread.start();
-                        startPCMRecording();
-                        isRecording = true;
-                        isWaitingToStart = false;
-                        sendMessageToUI(Constants.MSG_SET_STATUS_ON, "");
-                    }
-                }
+    private void captureAudioDataThread() {
+        Log.d(TAG, "captureAudioDataThread()");
+        iterateLoggingFiles();
+        while (isWaitingToStart) {
+            if (start_time.equals(hms.format(new Date()))) {
+                recorderThread = new RecorderThread();
+                recorderThread.start();
+                isRecording = true;
+                isWaitingToStart = false;
+                sendMessageToUI(Constants.MSG_SET_STATUS_ON, "");
             }
-        }, 0, Constants.SAMPLER_INTERVAL/10);
+        }
+
+        while (isRecording) {
+            byte sData[] = new byte[Constants.frameByteSize];
+            // gets the voice output from microphone to byte format
+            recorderThread.audioRecord.read(sData, 0, Constants.frameByteSize);
+            try {
+                //TODO: Add array here to limit amount of captured data if it the sampling rate is too high
+                double out5 = Utilities.getPower(sData);
+                String audioData = setupDate() + "," + Double.toString(out5);
+                audioLog.write(audioData + "\r\n");
+                os.write(sData, 0, Constants.frameByteSize);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        try {
+            os.close();
+            audioLog.flush();
+            audioLog.close();
+        } catch (IOException f) {
+            f.printStackTrace();
+        }
+
     }
 
     public void stopSamplerTimer() {
@@ -542,6 +561,14 @@ public class RainTransmitterService extends Service {
         loggerTimer.cancel();
         loggerTimer.purge();
         loggerTimer = null;
+    }
+
+    public void stopIterateLoggerTimer() {
+        if (iterateLoggers != null) {
+            iterateLoggers.cancel();
+            iterateLoggers.purge();
+            iterateLoggers = null;
+        }
     }
 
     /**
@@ -566,61 +593,6 @@ public class RainTransmitterService extends Service {
         buffer.insertRow(serverReceiverNumber, msg, "2");
         backup.insertRow(msg);
     }
-
-    //Writing PCM
-    private void startPCMRecording() {
-
-        pcmRecorderThread = new Thread(new Runnable() {
-            public void run() {
-                writeAudioDataToFile();
-            }
-        }, "AudioRecorder Thread");
-        pcmRecorderThread.start();
-    }
-
-    private void writeAudioDataToFile() {
-        //TODO: change name of file every x mins or hour.
-        //TODO: move while recording loop to outisde
-        File file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".pcm");
-        short sData[] = new short[Constants.frameByteSize];
-
-        FileOutputStream os = null;
-        try {
-            os = new FileOutputStream(file);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-        //TODO: Write labels to first row(short or byte) is correct in providing the raw data (but i think i already did this)
-        while (isRecording) {
-            recorderThread.audioRecord.read(sData, 0, Constants.frameByteSize);
-            try {
-                byte bData[] = short2byte(sData);
-                os.write(bData, 0, Constants.frameByteSize * 2);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        try {
-            os.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    //convert short to byte
-    private byte[] short2byte(short[] sData) {
-        int shortArrsize = sData.length;
-        byte[] bytes = new byte[shortArrsize * 2];
-        for (int i = 0; i < shortArrsize; i++) {
-            bytes[i * 2] = (byte) (sData[i] & 0x00FF);
-            bytes[(i * 2) + 1] = (byte) (sData[i] >> 8);
-            sData[i] = 0;
-        }
-        return bytes;
-    }
-    //End of Writing PCM
-
-
 
     /*
      * SMSBroadCastReceiver
@@ -672,6 +644,10 @@ public class RainTransmitterService extends Service {
                         isWaitingToStart = false;
                         if (recorderThread != null)
                             recorderThread.stopRecording();
+                        if (recordingThread.isAlive()) {
+                            recordingThread.interrupt();
+                        }
+                        stopIterateLoggerTimer();
 
                         sendMessageToUI(Constants.MSG_SET_STATUS_OFF, "");
                         this.abortBroadcast();
