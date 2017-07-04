@@ -3,12 +3,7 @@ package admu.raintransmitter.main;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
-import android.os.Environment;
 import android.util.Log;
-
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
 
 public class RecorderThread extends Thread {
     private static final String TAG = "RecorderThread";

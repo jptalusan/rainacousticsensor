@@ -31,6 +31,10 @@ public class Utilities {
         return out;
     }
 
+    static double roundDown(double d, int places) {
+        return Math.round(d * (Math.pow(10, places)) / Math.pow(10, places));
+    }
+
     public static void doRestart(Context c) {
         try {
             //check if the context is given

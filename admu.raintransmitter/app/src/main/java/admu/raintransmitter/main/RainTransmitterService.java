@@ -35,6 +35,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.sql.Time;
+import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -100,6 +101,8 @@ public class RainTransmitterService extends Service {
     private File file = null;
     private FileOutputStream os = null;
     private Timer iterateLoggers = null;
+    private boolean hasStartedLogging = false;
+    private long timeToStart = 0;
 
     @Override
     public void onCreate() {
@@ -314,34 +317,27 @@ public class RainTransmitterService extends Service {
      * Ensures that the start_time will only be 2 minutes away from initialization
      */
     public void InitializeTime() {
-        if (Integer.parseInt(m.format(new Date()).substring(1,2)) < 2)
-            start_time = hm.format(new Date()).substring(0,4) + "2:00";
-        else if (Integer.parseInt(m.format(new Date()).substring(1,2)) < 4)
-            start_time = hm.format(new Date()).substring(0,4) + "4:00";
-        else if (Integer.parseInt(m.format(new Date()).substring(1,2)) < 6)
-            start_time = hm.format(new Date()).substring(0,4) + "6:00";
-        else if (Integer.parseInt(m.format(new Date()).substring(1,2)) < 8)
-            start_time = hm.format(new Date()).substring(0,4) + "8:00";
-        else {
-            int test = Integer.parseInt(m.format(new Date()).substring(0,1));
-            if (test == 5)
-                start_time = String.valueOf(Integer.parseInt(hm.format(new Date()).substring(0,2)) + 1) + ":00:00";
-            else
-                start_time = hm.format(new Date()).substring(0,3) + String.valueOf(test + 1) + "0:00";
-        }
-        Log.d(TAG, "Start time: " + start_time);
-
-        Toast.makeText(getApplicationContext(), start_time, Toast.LENGTH_LONG).show();
+        timeToStart = System.currentTimeMillis() + Constants.THIRTY_SECONDS;
+        Log.d(TAG, "Start time: " + convertMillisToTimeFormat(timeToStart));
         isWaitingToStart = true;
+        recordingThread.start();
+        Toast.makeText(getApplicationContext(), convertMillisToTimeFormat(timeToStart), Toast.LENGTH_LONG).show();
     }
 
     private String setupName() {
-        return String.valueOf(System.currentTimeMillis());
+        return String.valueOf(System.currentTimeMillis() / 1000);
     }
 
     private String setupDate() {
         long timeInSeconds = System.currentTimeMillis() / 1000;
         return Long.toString(timeInSeconds);
+    }
+
+    private String convertMillisToTimeFormat(long timeInMillis) {
+
+        Date date = new Date(timeInMillis);
+        DateFormat formatter = DateFormat.getTimeInstance();
+        return formatter.format(date);
     }
 
     /**
@@ -361,7 +357,7 @@ public class RainTransmitterService extends Service {
             sound = new double[Constants.SAMPLES];
             signal = new double[Constants.SAMPLES];
             position = 0;
-            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, I'll start recording at : " + start_time), "1");
+            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, I'll start recording at : " + convertMillisToTimeFormat(timeToStart)), "1");
         }
 
         if (data[1].equals(Constants.wifi)) {
@@ -369,14 +365,14 @@ public class RainTransmitterService extends Service {
             startModeTimer();
             InitializeTime();
             sendMessageToUI(Constants.MSG_SET_MODE_WIFI, "");
-            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, I'll start recording at : " + start_time), "1");
+            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, I'll start recording at : " + convertMillisToTimeFormat(timeToStart)), "1");
         }
         if (data[1].equals(Constants.test)) {
             startLoggerTimer();
             startModeTimer();
             InitializeTime();
             sendMessageToUI(Constants.MSG_SET_MODE_TEST, "");
-            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, I'll start recording at : " + start_time), "1");
+            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, I'll start recording at : " + convertMillisToTimeFormat(timeToStart)), "1");
         }
     }
 
@@ -477,34 +473,25 @@ public class RainTransmitterService extends Service {
      */
     //TODO: This gets the sound level power 10 times a second (10Hz)
     public void startSamplerTimer(){
-        audioFileName = setupName() + "-Tx";
-        iterateLoggers = new Timer();
-//        iterateLoggers.scheduleAtFixedRate(new TimerTask() {
-//            @Override
-//            public void run() {
-//                iterateLoggingFiles();
-//            }
-//        }, 0, Constants.DEFAULT_LOGGER_DURATION);
-
         recordingThread = new Thread(new Runnable() {
             public void run() {
                 captureAudioDataThread();
             }
         }, "AudioRecorder Thread");
-        recordingThread.start();
     }
 
+    //PCM only since CSV is small enough
     private void iterateLoggingFiles() {
-        Log.d(TAG, "iterateLoggingFiles()");
-        audioLogFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".csv");
-        try {
-            audioLogFile.createNewFile();
-            audioLog = new FileWriter(audioLogFile, true);
-        } catch (IOException ex) {
-            throw new IllegalStateException("Failed to create " + audioLog.toString());
-        }
-
+        audioFileName = setupName() + "-Tx";
+        Log.d(TAG, "iterateLoggingPCMFiles()" + convertMillisToTimeFormat(System.currentTimeMillis()));
         file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".pcm");
+
+        try {
+            if (os != null)
+                os.close();
+        } catch (IOException f) {
+            f.printStackTrace();
+        }
 
         os = null;
         try {
@@ -515,10 +502,28 @@ public class RainTransmitterService extends Service {
     }
 
     private void captureAudioDataThread() {
-        Log.d(TAG, "captureAudioDataThread()");
-        iterateLoggingFiles();
+        Log.d(TAG, "captureAudioDataThread started...");
         while (isWaitingToStart) {
-            if (start_time.equals(hms.format(new Date()))) {
+            if (System.currentTimeMillis() > timeToStart) {
+                Log.d(TAG, "Starting capturing now...");
+                //Starting logger timer
+                iterateLoggers = new Timer();
+                iterateLoggers.scheduleAtFixedRate(new TimerTask() {
+                    @Override
+                    public void run() {
+                        iterateLoggingFiles();
+                    }
+                }, 0, Constants.DEFAULT_LOGGER_DURATION);
+
+                //Creating audioLogFile
+                audioLogFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + setupName() + "-Tx" + ".csv");
+                try {
+                    if(audioLogFile.createNewFile())
+                        audioLog = new FileWriter(audioLogFile, true);
+                } catch (IOException ex) {
+                    throw new IllegalStateException("Failed to create " + audioLog.toString());
+                }
+
                 recorderThread = new RecorderThread();
                 recorderThread.start();
                 isRecording = true;
@@ -534,21 +539,13 @@ public class RainTransmitterService extends Service {
             try {
                 //TODO: Add array here to limit amount of captured data if it the sampling rate is too high
                 double out5 = Utilities.getPower(sData);
-                String audioData = setupDate() + "," + Double.toString(out5);
+                String audioData = setupDate() + "," + Utilities.roundDown(out5, 3);
                 audioLog.write(audioData + "\r\n");
                 os.write(sData, 0, Constants.frameByteSize);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-        try {
-            os.close();
-            audioLog.flush();
-            audioLog.close();
-        } catch (IOException f) {
-            f.printStackTrace();
-        }
-
     }
 
     public void stopSamplerTimer() {
@@ -636,18 +633,30 @@ public class RainTransmitterService extends Service {
                         } else {
                             Log.w(TAG, "Already sent start message, please wait, or send stop before starting again.");
                         }
+
+                        hasStartedLogging = false;
                     }
                     if (number.contains(controllerNumber) && data[0].toLowerCase().equals("stop")) {
                         buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, stopped recording."), "1");
                         Log.i(TAG, "Stopping..");
                         isRecording = false;
                         isWaitingToStart = false;
+                        hasStartedLogging = false;
                         if (recorderThread != null)
                             recorderThread.stopRecording();
                         if (recordingThread.isAlive()) {
                             recordingThread.interrupt();
                         }
                         stopIterateLoggerTimer();
+
+
+                        try {
+                            os.close();
+                            audioLog.flush();
+                            audioLog.close();
+                        } catch (IOException f) {
+                            f.printStackTrace();
+                        }
 
                         sendMessageToUI(Constants.MSG_SET_STATUS_OFF, "");
                         this.abortBroadcast();

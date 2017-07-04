@@ -41,8 +41,9 @@ public class Constants {
     // Recorder Thread
     static int channelConfiguration = AudioFormat.CHANNEL_IN_MONO;
     static int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
-    static int sampleRate = 8000;//44100; //44100;
+    static int sampleRate = 8000;//44100; //8000 for emulator;
     static int frameByteSize = 2048; // for 1024 fft size (16bit sample size)
 
-    static int DEFAULT_LOGGER_DURATION = 10000;
+    static int DEFAULT_LOGGER_DURATION = 60000;
+    static int THIRTY_SECONDS = 30000;
 }
