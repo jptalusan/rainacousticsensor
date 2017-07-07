@@ -5,15 +5,29 @@ SENSORS
 <BODY>
 <ul>
 
-<li><a href="rainRT1.php">Rain Sensor 1</a></li>
-<li><a href="rainRT2.php">Rain Sensor 2</a></li>
-<li><a href="rainRT3.php">Rain Sensor 3</a></li>
+<li><a href="rainRTX.php?transmitter=RT1">Rain Sensor 1</a></li>
+<li><a href="rainRTX.php?transmitter=RT2">Rain Sensor 2</a></li>
+<li><a href="rainRTX.php?transmitter=RT3">Rain Sensor 3</a></li>
+<br>
+<li><a href="rainRTX.php?transmitter=RT4">Rain Sensor 4</a></li>
+<li><a href="rainRTX.php?transmitter=RT5">Rain Sensor 5</a></li>
+<li><a href="rainRTX.php?transmitter=RT6">Rain Sensor 6</a></li>
+<br>
+<li><a href="rainRTX.php?transmitter=RT7">Rain Sensor 7</a></li>
+<li><a href="rainRTX.php?transmitter=RT8">Rain Sensor 8</a></li>
 </ul>
 
 <ul>
-<li><a href="downloadRT1csv.php">Download RT1 csv file</a></li>
-<li><a href="downloadRT2csv.php">Download RT2 csv file</a></li>
-<li><a href="downloadRT3csv.php">Download RT3 csv file</a></li>
+<li><a href="downloadRTXcsv.php?transmitter=RT1">Download Rain Sensor 1 csv file</a></li>
+<li><a href="downloadRTXcsv.php?transmitter=RT2">Download Rain Sensor 2 csv file</a></li>
+<li><a href="downloadRTXcsv.php?transmitter=RT3">Download Rain Sensor 3 csv file</a></li>
+<br>
+<li><a href="downloadRTXcsv.php?transmitter=RT4">Download Rain Sensor 4 csv file</a></li>
+<li><a href="downloadRTXcsv.php?transmitter=RT5">Download Rain Sensor 5 csv file</a></li>
+<li><a href="downloadRTXcsv.php?transmitter=RT6">Download Rain Sensor 6 csv file</a></li>
+<br>
+<li><a href="downloadRTXcsv.php?transmitter=RT7">Download Rain Sensor 7 csv file</a></li>
+<li><a href="downloadRTXcsv.php?transmitter=RT8">Download Rain Sensor 8 csv file</a></li>
 </ul>
 
 <br>

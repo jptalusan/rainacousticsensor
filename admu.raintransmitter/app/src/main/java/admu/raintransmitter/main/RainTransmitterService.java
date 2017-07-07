@@ -103,6 +103,11 @@ public class RainTransmitterService extends Service {
     private long timeToStart = 0;
     private int numberOfSamples = 0;
 
+    private boolean isAt50Percent = false;
+    private boolean isAt25Percent = false;
+
+    private String transmitterId = "";
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -356,7 +361,7 @@ public class RainTransmitterService extends Service {
             sound = new double[Constants.SAMPLES];
 //            signal = new double[Constants.SAMPLES];
             position = 0;
-            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, I'll start recording at : " + convertMillisToTimeFormat(timeToStart)), "1");
+            buffer.insertRow(controllerNumber, (transmitterId + " here, I'll start recording at : " + convertMillisToTimeFormat(timeToStart)), "1");
         }
 
         if (data[1].equals(Constants.wifi)) {
@@ -364,14 +369,14 @@ public class RainTransmitterService extends Service {
             startModeTimer();
             InitializeTime();
             sendMessageToUI(Constants.MSG_SET_MODE_WIFI, "");
-            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, I'll start recording at : " + convertMillisToTimeFormat(timeToStart)), "1");
+            buffer.insertRow(controllerNumber, (transmitterId + " here, I'll start recording at : " + convertMillisToTimeFormat(timeToStart)), "1");
         }
         if (data[1].equals(Constants.test)) {
             startLoggerTimer();
             startModeTimer();
             InitializeTime();
             sendMessageToUI(Constants.MSG_SET_MODE_TEST, "");
-            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, I'll start recording at : " + convertMillisToTimeFormat(timeToStart)), "1");
+            buffer.insertRow(controllerNumber, (transmitterId + " here, I'll start recording at : " + convertMillisToTimeFormat(timeToStart)), "1");
         }
     }
 
@@ -401,12 +406,20 @@ public class RainTransmitterService extends Service {
                 }
                 // check battery
                 int bat = getBatteryLevel();
-                if (bat == 90)
+                if (bat == 90) {
                     isPowerProblem = false;
-                if (bat == 50)
+                }
+                if (bat == 50 && !isAt50Percent) {
+                    buffer.insertRow(controllerNumber, transmitterId + " here, battery at 50%. Please come check on me!", "0");
+                    isAt50Percent = true;
+                }
+                if (bat == 25 && !isAt25Percent) {
+                    buffer.insertRow(controllerNumber, transmitterId + " here, battery at 25%. Please come check on me!", "0");
+                    isAt25Percent = true;
                     isPowerProblem = true;
+                }
                 if (bat == 10 && isPowerProblem) {
-                    buffer.insertRow(controllerNumber, Constants.SENSOR + " here, battery at 10%. Please come check on me!", "0");
+                    buffer.insertRow(controllerNumber, transmitterId + " here, battery at 10%. Please come check on me!", "0");
                     isPowerProblem = false;
                 }
             }
@@ -527,7 +540,7 @@ public class RainTransmitterService extends Service {
                 recorderThread.start();
                 //Not yet working correctly
 //                numberOfSamples = Utilities.computeNumberOfSamplesPerText(Constants.sampleRate, recorderThread.recBufSize);
-                numberOfSamples = 8;
+                numberOfSamples = 25;
                 Log.d(TAG, "Number of samples per sec: " + numberOfSamples);
 
                 isWaitingToStart = false;
@@ -609,7 +622,7 @@ public class RainTransmitterService extends Service {
     //TODO: Concatenate 8-10 data points per text (equivalent to 10 seconds) or 140 characters. which ever comes first?
     public void processAndSend(double soundLevel) {
         // SEND //
-        String msg = "#" + Constants.SENSOR + ";";
+        String msg = "#" + transmitterId + ";";
         msg += setupDate() + ";";
         msg += ftRmsDb.format(soundLevel) + ";#";
 
@@ -634,6 +647,11 @@ public class RainTransmitterService extends Service {
             serverReceiverNumber = getApplicationContext()
                     .getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE)
                     .getString(Constants.SERVER_NUM_KEY, "");
+            transmitterId = getApplicationContext()
+                    .getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE)
+                    .getString(Constants.TRANSMITTER_ID_KEY, "");
+            Log.d(TAG, "Transitter: " + transmitterId);
+
             Bundle bundle = intent.getExtras();
             if (bundle != null) {
                 Object[] pdus = (Object[]) bundle.get("pdus");
@@ -654,7 +672,7 @@ public class RainTransmitterService extends Service {
                         if (!isWaitingToStart) {
                             buffer.truncateTable();
                             SimpleDateFormat ft = new SimpleDateFormat("HH:mm:ss", Locale.ENGLISH);
-                            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, time is " + ft.format(new Date()) + ", started recording."), "1");
+                            buffer.insertRow(controllerNumber, (transmitterId + " here, time is " + ft.format(new Date()) + ", started recording."), "1");
                             messageAnalysis(data);
                             this.abortBroadcast();
                         } else {
@@ -664,7 +682,7 @@ public class RainTransmitterService extends Service {
                         hasStartedLogging = false;
                     }
                     if (number.contains(controllerNumber) && data[0].toLowerCase().equals("stop")) {
-                        buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, stopped recording."), "1");
+                        buffer.insertRow(controllerNumber, (transmitterId + " here, stopped recording."), "1");
                         Log.i(TAG, "Stopping..");
                         isRecording = false;
                         isWaitingToStart = false;
@@ -691,12 +709,12 @@ public class RainTransmitterService extends Service {
                     if (number.contains(controllerNumber) && data[0].toLowerCase().equals("truncate")) {
                         if (data[1].toLowerCase().equals("buffer")) {
                             buffer.truncateTable();
-                            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, resetting buffer table."), "1");
+                            buffer.insertRow(controllerNumber, (transmitterId + " here, resetting buffer table."), "1");
                             this.abortBroadcast();
                         }
                         if (data[1].toLowerCase().equals("backup")) {
                             backup.truncateTable();
-                            buffer.insertRow(controllerNumber, (Constants.SENSOR + " here, resetting backup table."), "1");
+                            buffer.insertRow(controllerNumber, (transmitterId + " here, resetting backup table."), "1");
                             this.abortBroadcast();
                         }
                     }

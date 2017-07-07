@@ -49,8 +49,13 @@ public class RainReceiverActivity extends AppCompatActivity {
     private TextView received_rain1, saved_rain1_server1 = null, saved_rain1_server2 = null;
     private TextView received_rain2, saved_rain2_server1 = null, saved_rain2_server2 = null;
     private TextView received_rain3, saved_rain3_server1 = null, saved_rain3_server2 = null;
+    private TextView received_rain4, saved_rain4_server1 = null, saved_rain4_server2 = null;
+    private TextView received_rain5, saved_rain5_server1 = null, saved_rain5_server2 = null;
+    private TextView received_rain6, saved_rain6_server1 = null, saved_rain6_server2 = null;
+    private TextView received_rain7, saved_rain7_server1 = null, saved_rain7_server2 = null;
+    private TextView received_rain8, saved_rain8_server1 = null, saved_rain8_server2 = null;
     private TextView rows_buffer = null;
-    private EditText etSensor1, etSensor2, etSensor3, etServer, etMonitor;
+    private EditText etSensor1, etSensor2, etSensor3, etSensor4, etSensor5, etSensor6, etSensor7, etSensor8, etServer, etMonitor;
     private Button bSave;
 
     private PowerManager pm;
@@ -97,11 +102,35 @@ public class RainReceiverActivity extends AppCompatActivity {
         received_rain3 = (TextView)findViewById(R.id.id_rain3_received);
         saved_rain3_server1 = (TextView)findViewById(R.id.id_rain3_server1_saved);
         saved_rain3_server2 = (TextView)findViewById(R.id.id_rain3_server2_saved);
+
+        received_rain4 = (TextView)findViewById(R.id.id_rain4_received);
+        saved_rain4_server1 = (TextView)findViewById(R.id.id_rain4_server1_saved);
+        saved_rain4_server2 = (TextView)findViewById(R.id.id_rain4_server2_saved);
+        received_rain5 = (TextView)findViewById(R.id.id_rain5_received);
+        saved_rain5_server1 = (TextView)findViewById(R.id.id_rain5_server1_saved);
+        saved_rain5_server2 = (TextView)findViewById(R.id.id_rain5_server2_saved);
+        received_rain6 = (TextView)findViewById(R.id.id_rain6_received);
+        saved_rain6_server1 = (TextView)findViewById(R.id.id_rain6_server1_saved);
+        saved_rain6_server2 = (TextView)findViewById(R.id.id_rain6_server2_saved);
+
+        received_rain7 = (TextView)findViewById(R.id.id_rain7_received);
+        saved_rain7_server1 = (TextView)findViewById(R.id.id_rain7_server1_saved);
+        saved_rain7_server2 = (TextView)findViewById(R.id.id_rain7_server2_saved);
+        received_rain8 = (TextView)findViewById(R.id.id_rain8_received);
+        saved_rain8_server1 = (TextView)findViewById(R.id.id_rain8_server1_saved);
+        saved_rain8_server2 = (TextView)findViewById(R.id.id_rain8_server2_saved);
+
         rows_buffer = (TextView)findViewById(R.id.id_rows_buffer);
 
         etSensor1 = (EditText)findViewById(R.id.sensor1);
         etSensor2 = (EditText)findViewById(R.id.sensor2);
         etSensor3 = (EditText)findViewById(R.id.sensor3);
+        etSensor4 = (EditText)findViewById(R.id.sensor4);
+        etSensor5 = (EditText)findViewById(R.id.sensor5);
+        etSensor6 = (EditText)findViewById(R.id.sensor6);
+        etSensor7 = (EditText)findViewById(R.id.sensor7);
+        etSensor8 = (EditText)findViewById(R.id.sensor8);
+
         etServer = (EditText)findViewById(R.id.etServer);
         etMonitor = (EditText)findViewById(R.id.etMonitor);
 
@@ -112,6 +141,12 @@ public class RainReceiverActivity extends AppCompatActivity {
         etSensor1.setText(sharedPref.getString(Constants.SENSOR1, ""));
         etSensor2.setText(sharedPref.getString(Constants.SENSOR2, ""));
         etSensor3.setText(sharedPref.getString(Constants.SENSOR3, ""));
+        etSensor4.setText(sharedPref.getString(Constants.SENSOR4, ""));
+        etSensor5.setText(sharedPref.getString(Constants.SENSOR5, ""));
+        etSensor6.setText(sharedPref.getString(Constants.SENSOR6, ""));
+        etSensor7.setText(sharedPref.getString(Constants.SENSOR7, ""));
+        etSensor8.setText(sharedPref.getString(Constants.SENSOR8, ""));
+
         etMonitor.setText(sharedPref.getString(Constants.MONITOR, ""));
         etServer.setText(sharedPref.getString(Constants.SERVER1, "http://rainsensor.excthackathon.x10host.com"));
 
@@ -121,6 +156,11 @@ public class RainReceiverActivity extends AppCompatActivity {
                 editor.putString(Constants.SENSOR1, etSensor1.getText().toString()).apply();
                 editor.putString(Constants.SENSOR2, etSensor2.getText().toString()).apply();
                 editor.putString(Constants.SENSOR3, etSensor3.getText().toString()).apply();
+                editor.putString(Constants.SENSOR4, etSensor4.getText().toString()).apply();
+                editor.putString(Constants.SENSOR5, etSensor5.getText().toString()).apply();
+                editor.putString(Constants.SENSOR6, etSensor6.getText().toString()).apply();
+                editor.putString(Constants.SENSOR7, etSensor7.getText().toString()).apply();
+                editor.putString(Constants.SENSOR8, etSensor8.getText().toString()).apply();
                 editor.putString(Constants.MONITOR, etMonitor.getText().toString()).apply();
                 editor.putString(Constants.SERVER1, etServer.getText().toString()).apply();
                 Toast.makeText(getApplicationContext(), "Saved", Toast.LENGTH_SHORT).show();
@@ -209,6 +249,70 @@ public class RainReceiverActivity extends AppCompatActivity {
                 case Constants.MSG_SET_SAVED_RAIN3_SERVER2:
                     str = msg.getData().getString("str");
                     saved_rain3_server2.setText(str);
+                    break;
+
+
+                case Constants.MSG_SET_RECEIVED_RAIN4:
+                    str = msg.getData().getString("str");
+                    received_rain4.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN4_SERVER1:
+                    str = msg.getData().getString("str");
+                    saved_rain4_server1.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN4_SERVER2:
+                    str = msg.getData().getString("str");
+                    saved_rain4_server2.setText(str);
+                    break;
+                case Constants.MSG_SET_RECEIVED_RAIN5:
+                    str = msg.getData().getString("str");
+                    received_rain5.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN5_SERVER1:
+                    str = msg.getData().getString("str");
+                    saved_rain5_server1.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN5_SERVER2:
+                    str = msg.getData().getString("str");
+                    saved_rain5_server2.setText(str);
+                    break;
+                case Constants.MSG_SET_RECEIVED_RAIN6:
+                    str = msg.getData().getString("str");
+                    received_rain6.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN6_SERVER1:
+                    str = msg.getData().getString("str");
+                    saved_rain6_server1.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN6_SERVER2:
+                    str = msg.getData().getString("str");
+                    saved_rain6_server2.setText(str);
+                    break;
+
+
+                case Constants.MSG_SET_RECEIVED_RAIN7:
+                    str = msg.getData().getString("str");
+                    received_rain7.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN7_SERVER1:
+                    str = msg.getData().getString("str");
+                    saved_rain7_server1.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN7_SERVER2:
+                    str = msg.getData().getString("str");
+                    saved_rain7_server2.setText(str);
+                    break;
+                case Constants.MSG_SET_RECEIVED_RAIN8:
+                    str = msg.getData().getString("str");
+                    received_rain8.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN8_SERVER1:
+                    str = msg.getData().getString("str");
+                    saved_rain8_server1.setText(str);
+                    break;
+                case Constants.MSG_SET_SAVED_RAIN8_SERVER2:
+                    str = msg.getData().getString("str");
+                    saved_rain8_server2.setText(str);
                     break;
                 default:
                     super.handleMessage(msg);

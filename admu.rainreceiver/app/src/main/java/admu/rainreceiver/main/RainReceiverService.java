@@ -49,6 +49,11 @@ public class RainReceiverService extends Service {
     private String rain1number = "";
     private String rain2number = "";
     private String rain3number = "";
+    private String rain4number = "";
+    private String rain5number = "";
+    private String rain6number = "";
+    private String rain7number = "";
+    private String rain8number = "";
     private String controllerNumber = "";
     
     @Override
@@ -145,6 +150,11 @@ public class RainReceiverService extends Service {
             rain1number = sharedPref.getString(Constants.SENSOR1, "");
             rain2number = sharedPref.getString(Constants.SENSOR2, "");
             rain3number = sharedPref.getString(Constants.SENSOR3, "");
+            rain4number = sharedPref.getString(Constants.SENSOR4, "");
+            rain5number = sharedPref.getString(Constants.SENSOR5, "");
+            rain6number = sharedPref.getString(Constants.SENSOR6, "");
+            rain7number = sharedPref.getString(Constants.SENSOR7, "");
+            rain8number = sharedPref.getString(Constants.SENSOR8, "");
             // Get SMS map from Intent
             Bundle extras = intent.getExtras();
             if (extras != null) {
@@ -202,6 +212,49 @@ public class RainReceiverService extends Service {
 //                                    buffer.insertRow(3, 2, body);
                                     sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
                                     sendMessageToUI(Constants.MSG_SET_RECEIVED_RAIN3, data[1]);
+                                }
+
+                                if (data[0].equals("#RT4")
+                                        && number.contains(rain4number)) {
+                                    Log.i(TAG, "Sending to buffer for processing.");
+                                    buffer.insertRow(4, 1, body);
+                                    logandupload("loggerreceiver4.txt", body, true);
+//                                    buffer.insertRow(1, 2, body);
+                                    sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
+                                    sendMessageToUI(Constants.MSG_SET_RECEIVED_RAIN4, data[1]);
+                                }
+                                if (data[0].equals("#RT5")
+                                        && number.contains(rain5number)) {
+                                    buffer.insertRow(5, 1, body);
+                                    logandupload("loggerreceiver5.txt", body, true);
+//                                    buffer.insertRow(2, 2, body);
+                                    sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
+                                    sendMessageToUI(Constants.MSG_SET_RECEIVED_RAIN5, data[1]);
+                                }
+                                if (data[0].equals("#RT6")
+                                        && number.contains(rain6number)) {
+                                    buffer.insertRow(6, 1, body);
+                                    logandupload("loggerreceiver6.txt", body, true);
+//                                    buffer.insertRow(3, 2, body);
+                                    sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
+                                    sendMessageToUI(Constants.MSG_SET_RECEIVED_RAIN6, data[1]);
+                                }
+                                if (data[0].equals("#RT7")
+                                        && number.contains(rain7number)) {
+                                    Log.i(TAG, "Sending to buffer for processing.");
+                                    buffer.insertRow(7, 1, body);
+                                    logandupload("loggerreceiver7.txt", body, true);
+//                                    buffer.insertRow(1, 2, body);
+                                    sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
+                                    sendMessageToUI(Constants.MSG_SET_RECEIVED_RAIN7, data[1]);
+                                }
+                                if (data[0].equals("#RT8")
+                                        && number.contains(rain8number)) {
+                                    buffer.insertRow(8, 1, body);
+                                    logandupload("loggerreceiver8.txt", body, true);
+//                                    buffer.insertRow(2, 2, body);
+                                    sendMessageToUI(Constants.MSG_SET_ROWS_BUFFER, "Rows in buffer : " + String.valueOf(buffer.getNumberRows()));
+                                    sendMessageToUI(Constants.MSG_SET_RECEIVED_RAIN8, data[1]);
                                 }
                             }
                             this.abortBroadcast();
@@ -276,6 +329,38 @@ public class RainReceiverService extends Service {
                     sendMessageToUI(Constants.MSG_SET_SAVED_RAIN3_SERVER1, "Server 1 : " + text[1]);
                 else
                     sendMessageToUI(Constants.MSG_SET_SAVED_RAIN3_SERVER2, "Server 2 : " + text[1]);
+            }
+
+            if (sensorName.equals("4")) {
+                if (row[2].equals("1"))
+                    sendMessageToUI(Constants.MSG_SET_SAVED_RAIN4_SERVER1, "Server 1 : " + text[1]);
+                else
+                    sendMessageToUI(Constants.MSG_SET_SAVED_RAIN4_SERVER2, "Server 2 : " + text[1]);
+            }
+            if (sensorName.equals("5")) {
+                if (row[2].equals("1"))
+                    sendMessageToUI(Constants.MSG_SET_SAVED_RAIN5_SERVER1, "Server 1 : " + text[1]);
+                else
+                    sendMessageToUI(Constants.MSG_SET_SAVED_RAIN5_SERVER2, "Server 2 : " + text[1]);
+            }
+            if (sensorName.equals("6")) {
+                if (row[2].equals("1"))
+                    sendMessageToUI(Constants.MSG_SET_SAVED_RAIN6_SERVER1, "Server 1 : " + text[1]);
+                else
+                    sendMessageToUI(Constants.MSG_SET_SAVED_RAIN6_SERVER2, "Server 2 : " + text[1]);
+            }
+
+            if (sensorName.equals("7")) {
+                if (row[2].equals("1"))
+                    sendMessageToUI(Constants.MSG_SET_SAVED_RAIN7_SERVER1, "Server 1 : " + text[1]);
+                else
+                    sendMessageToUI(Constants.MSG_SET_SAVED_RAIN7_SERVER2, "Server 2 : " + text[1]);
+            }
+            if (sensorName.equals("8")) {
+                if (row[2].equals("1"))
+                    sendMessageToUI(Constants.MSG_SET_SAVED_RAIN8_SERVER1, "Server 1 : " + text[1]);
+                else
+                    sendMessageToUI(Constants.MSG_SET_SAVED_RAIN8_SERVER2, "Server 2 : " + text[1]);
             }
         }
     }

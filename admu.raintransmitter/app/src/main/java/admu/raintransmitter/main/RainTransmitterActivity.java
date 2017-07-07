@@ -13,6 +13,8 @@ import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -25,9 +27,11 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -58,7 +62,8 @@ public class RainTransmitterActivity extends AppCompatActivity {
     private static EditText etMonitorNumber = null;
     private static EditText etServerNumber = null;
     private static Button bSave = null;
-    
+    private static Spinner transmitterSpinner = null;
+
     // Handler gets created on the UI-thread
     private Handler mHandler = new Handler();
     
@@ -92,6 +97,7 @@ public class RainTransmitterActivity extends AppCompatActivity {
         etMonitorNumber = (EditText)findViewById(R.id.etMonitorNumber);
         etServerNumber = (EditText)findViewById(R.id.etServerNumber);
         bSave = (Button)findViewById(R.id.bSave);
+        transmitterSpinner = (Spinner)findViewById(R.id.transmittersSpinner);
 
         //Number to be saved should be in the format +639059716422
         etMonitorNumber.setText(sharedPref.getString(Constants.MONITOR_NUM_KEY, ""));
@@ -109,6 +115,30 @@ public class RainTransmitterActivity extends AppCompatActivity {
         Log.d("Get string", "" + sharedPref.getString(Constants.MONITOR_NUM_KEY, ""));
 
         checkAndRequestPermissions();
+
+        String transmitterName = sharedPref.getString(Constants.TRANSMITTER_ID_KEY, "");
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this, R.array.transmitters, android.R.layout.simple_spinner_item);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        transmitterSpinner.setAdapter(adapter);
+
+        if (!transmitterName.equals("")) {
+            int spinnerPosition = adapter.getPosition(transmitterName);
+            transmitterSpinner.setSelection(spinnerPosition);
+        }
+
+        transmitterSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String transmitterName = (String)parent.getItemAtPosition(position);
+                Log.d(TAG, transmitterName);
+                editor.putString(Constants.TRANSMITTER_ID_KEY, transmitterName).apply();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
     }
 
     private void startService() {

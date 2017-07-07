@@ -1,8 +1,9 @@
 <?php
 // connect to the database
 include('connect.php');
+isset($_POST['transmitter']) ? $transmitter = $_POST['transmitter'] : $transmitter = $_GET['transmitter'];
 header('Content-Type: text/csv; charset=utf-8');
-header('Content-Disposition: attachment; filename=RT1_data.csv');
+header('Content-Disposition: attachment; filename=' . $transmitter . '_data.csv');
 
 $output = fopen('php://output', 'w');
 
@@ -11,7 +12,8 @@ fputcsv($output, array(
 'timestamp',
 'soundLevel'));
 
-if ($result = $mysqli->query("SELECT * FROM RT1"))
+$queryString = "SELECT * FROM " . $transmitter;
+if ($result = $mysqli->query($queryString))
 {
 	if ($result->num_rows > 0)
 	{

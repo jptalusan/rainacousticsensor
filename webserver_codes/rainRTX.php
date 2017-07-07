@@ -8,16 +8,11 @@
 <?php
 // connect to the database
 include('connect.php');
+isset($_POST['transmitter']) ? $transmitter = $_POST['transmitter'] : $transmitter = $_GET['transmitter'];
 
-// if($_SERVER['SERVER_ADDR'] == "::1") {
-// $address = "localhost";
-// } else {
-// $address = $_SERVER['SERVER_ADDR'];
-// }
-// $address = "http://" . $address . "/usbong";
-// $address = "http://shrimptalusan.hostei.com/usbong";
-// get the records from the database
-if ($result = $mysqli->query("SELECT * FROM RT2"))
+echo "Data for " . $transmitter . "\r\n";
+$queryString = "SELECT * FROM " . $transmitter;
+if ($result = $mysqli->query($queryString))
 {
 	// display records if there are records to display
 	if ($result->num_rows > 0)
@@ -28,7 +23,7 @@ if ($result = $mysqli->query("SELECT * FROM RT2"))
 		// set table headers
 		echo "<tr>
 				<th>DATE_TIME IN SECONDS</th>
-				<th>ADDED SOUNDLEVEL (10 samples/second)</th>
+				<th>ADDED SOUNDLEVEL dB (20 samples/second)</th>
 			  </tr>";
 
 		while ($row = $result->fetch_object())

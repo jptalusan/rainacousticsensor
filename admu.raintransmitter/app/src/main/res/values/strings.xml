@@ -9,4 +9,15 @@
     <string name="on">MODULE OPERATING</string>
     <string name="off">MODULE OFF</string>
 
+    <string-array name="transmitters">
+        <item>RT1</item>
+        <item>RT2</item>
+        <item>RT3</item>
+        <item>RT4</item>
+        <item>RT5</item>
+        <item>RT6</item>
+        <item>RT7</item>
+        <item>RT8</item>
+    </string-array>
+
 </resources>
