@@ -28,9 +28,13 @@ if ($result = $mysqli->query($queryString))
 
 		while ($row = $result->fetch_object())
 		{
+			$currentTimeInMillis = $row->date_time;
+			$offset = 43200;
+			$seconds = $currentTimeInMillis + $offset;
+			$timeStamp = date("d/m/Y H:i:s", $seconds);
 			// set up a row for each record
 			echo "<tr>";
-			echo "<td>" . $row->date_time . "</td>";
+			echo "<td>" . $timeStamp . "</td>";
 			echo "<td>" . $row->soundLevel . "</td>";
 			echo "</tr>";
 		}
