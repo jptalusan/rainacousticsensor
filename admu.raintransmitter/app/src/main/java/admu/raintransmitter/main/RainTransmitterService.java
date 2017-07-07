@@ -2,16 +2,12 @@ package admu.raintransmitter.main;
 //Rain|Reco|SQL
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.PackageManager;
-import android.media.AudioRecord;
-import android.media.MediaRecorder;
 import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Environment;
@@ -34,7 +30,6 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.sql.Time;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -91,15 +86,10 @@ public class RainTransmitterService extends Service {
     private static final SimpleDateFormat hm = new SimpleDateFormat("HH:mm", Locale.ENGLISH);
     private static final SimpleDateFormat m = new SimpleDateFormat("mm", Locale.ENGLISH);
 
-    //Adding parameters for recording PCM
-    private AudioRecord pcmRecorder = null;
-    private Thread pcmRecorderThread = null;
-
     private Thread recordingThread = null;
     private File file = null;
     private FileOutputStream os = null;
     private Timer iterateLoggers = null;
-    private boolean hasStartedLogging = false;
     private long timeToStart = 0;
     private int numberOfSamples = 0;
 
@@ -569,15 +559,11 @@ public class RainTransmitterService extends Service {
                     position++;
                 }
                 if (position == numberOfSamples) {
-                    double total = 0;
-                    for (int i = 0; i < numberOfSamples; ++i) {
-                        total += sound[i];
-                    }
-                    final double totalTemp = total;
+                    final double powerIndB = Utilities.calculatePowerDb(sound, 0, numberOfSamples);
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
-                            processAndSend(Utilities.roundDown(totalTemp, 3));
+                            processAndSend(Utilities.roundDown(powerIndB, 3));
                         }
                     }).start();
                     position = 0;
@@ -678,15 +664,12 @@ public class RainTransmitterService extends Service {
                         } else {
                             Log.w(TAG, "Already sent start message, please wait, or send stop before starting again.");
                         }
-
-                        hasStartedLogging = false;
                     }
                     if (number.contains(controllerNumber) && data[0].toLowerCase().equals("stop")) {
                         buffer.insertRow(controllerNumber, (transmitterId + " here, stopped recording."), "1");
                         Log.i(TAG, "Stopping..");
                         isRecording = false;
                         isWaitingToStart = false;
-                        hasStartedLogging = false;
                         if (recorderThread != null)
                             recorderThread.stopRecording();
                         if (recordingThread.isAlive()) {

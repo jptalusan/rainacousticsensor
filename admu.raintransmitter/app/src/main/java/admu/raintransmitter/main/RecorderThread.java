@@ -8,8 +8,6 @@ import android.util.Log;
 public class RecorderThread extends Thread {
     private static final String TAG = "RecorderThread";
     public AudioRecord audioRecord;
-    private boolean isRecording;
-    private double mRmsSmoothed = 0;
     public int recBufSize = 0;
 
     public RecorderThread(){
@@ -25,10 +23,6 @@ public class RecorderThread extends Thread {
                 Constants.channelConfiguration,
                 Constants.audioEncoding,
                 recBufSize);
-    }
-
-    public boolean isRecording(){
-        return this.isAlive() && isRecording;
     }
 
     public void startRecording(){

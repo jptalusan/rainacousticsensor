@@ -16,6 +16,7 @@ import android.util.Log;
 
 public class Utilities {
     private static final String TAG = "Utilities";
+    private static final float FUDGE = 0.6f;
 
     static double getPower(byte[] buffer){
         /*
@@ -33,6 +34,22 @@ public class Utilities {
 
     static double roundDown(double d, int places) {
         return Math.round(d * Math.pow(10, places)) / Math.pow(10, places);
+    }
+
+    static double calculatePowerDb(double[] data, int off, int samples)
+    {
+        double sum = 0;
+        double sqsum = 0;
+        for (int i = 0; i < samples; i++)
+        {
+            final double v = data[off + i];
+            sum += v;
+            sqsum += v * v;
+        }
+        double power = (sqsum - ((sum * sum) / samples)) / samples;
+
+        double result = Math.log10(power) * 10f + FUDGE;
+        return result;
     }
 
     static int computeNumberOfSamplesPerText(double sampleRate, double bufferSize) {
