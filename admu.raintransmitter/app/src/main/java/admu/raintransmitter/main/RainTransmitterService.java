@@ -30,7 +30,6 @@ import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.lang.reflect.Array;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
@@ -39,10 +38,8 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.TimeUnit;
 
 public class RainTransmitterService extends Service {
     private static final String TAG = "Rain Tx Service";
@@ -100,12 +97,6 @@ public class RainTransmitterService extends Service {
     private boolean isAt25Percent = false;
 
     private String transmitterId = "";
-
-    private boolean isFirstTaskRunning = false;
-    private boolean isSecondTaskRunning = false;
-
-    private ArrayList<Double> ambientSoundArr = null;
-    private Timer ambientLevelTimer = null;
 
     @Override
     public void onCreate() {
@@ -491,11 +482,40 @@ public class RainTransmitterService extends Service {
         }, "AudioRecorder Thread");
     }
 
+    //PCM only since CSV is small enough
+    private void iterateLoggingFiles() {
+        audioFileName = setupName() + "-Tx";
+        Log.d(TAG, "iterateLoggingPCMFiles()" + convertMillisToTimeFormat(System.currentTimeMillis()));
+        file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".pcm");
+
+        try {
+            if (os != null)
+                os.close();
+        } catch (IOException f) {
+            f.printStackTrace();
+        }
+
+        os = null;
+        try {
+            os = new FileOutputStream(file);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+
     private void captureAudioDataThread() {
         Log.d(TAG, "captureAudioDataThread started...");
         while (isWaitingToStart) {
             if (System.currentTimeMillis() > timeToStart) {
                 Log.d(TAG, "Starting capturing now...");
+                //Starting logger timer
+                iterateLoggers = new Timer();
+                iterateLoggers.scheduleAtFixedRate(new TimerTask() {
+                    @Override
+                    public void run() {
+                        iterateLoggingFiles();
+                    }
+                }, 0, Constants.DEFAULT_LOGGER_DURATION);
 
                 //Creating audioLogFile
                 audioLogFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + setupName() + "-Tx" + ".csv");
@@ -519,23 +539,41 @@ public class RainTransmitterService extends Service {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+                isRecording = true;
 
                 sendMessageToUI(Constants.MSG_SET_STATUS_ON, "");
             }
         }
 
-        //Start ambient level thread here
-        ambientLevelTimer = new Timer();
-        ambientLevelTimer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                Log.d(TAG, "Starting audio recording tasks...");
-                isRecording = true;
-                if (!isFirstTaskRunning && !isSecondTaskRunning) {
-                    getAmbientSoundLevel();
+        while (isRecording) {
+            byte sData[] = new byte[Constants.frameByteSize];
+            sound = new double[numberOfSamples];
+            // gets the voice output from microphone to byte format
+            recorderThread.audioRecord.read(sData, 0, Constants.frameByteSize);
+            try {
+                //TODO: Add array here to limit amount of captured data if it the sampling rate is too high
+                double out5 = Utilities.getPower(sData);
+                String audioData = setupDate() + "," + Utilities.roundDown(out5, 3);
+                if (position < numberOfSamples) {
+                    sound[position] = out5;
+                    position++;
                 }
+                if (position == numberOfSamples) {
+                    final double powerIndB = Utilities.calculatePowerDb(sound, 0, numberOfSamples);
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            processAndSend(Utilities.roundDown(powerIndB, 3));
+                        }
+                    }).start();
+                    position = 0;
+                }
+                audioLog.write(audioData + "\r\n");
+                os.write(sData, 0, Constants.frameByteSize);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-        }, 0, 60000);
+        }
     }
 
     public void stopSamplerTimer() {
@@ -555,14 +593,6 @@ public class RainTransmitterService extends Service {
             iterateLoggers.cancel();
             iterateLoggers.purge();
             iterateLoggers = null;
-        }
-    }
-
-    public void stopAmbientLevelTimer() {
-        if (ambientLevelTimer != null) {
-            ambientLevelTimer.cancel();
-            ambientLevelTimer.purge();
-            ambientLevelTimer = null;
         }
     }
 
@@ -587,7 +617,7 @@ public class RainTransmitterService extends Service {
         backup.insertRow(msg);
     }
 
-    /**
+    /*
      * SMSBroadCastReceiver
      * Must register a broadcast receiver for SMS since this is the trigger for turning
      * on the data gathering of the device.
@@ -646,19 +676,15 @@ public class RainTransmitterService extends Service {
                             recordingThread.interrupt();
                         }
                         stopIterateLoggerTimer();
-                        stopAmbientLevelTimer();
+
 
                         try {
-                            if (os != null)
-                                os.close();
+                            os.close();
                             audioLog.flush();
                             audioLog.close();
                         } catch (IOException f) {
                             f.printStackTrace();
                         }
-
-                        isFirstTaskRunning = false;
-                        isSecondTaskRunning = false;
 
                         sendMessageToUI(Constants.MSG_SET_STATUS_OFF, "");
                         this.abortBroadcast();
@@ -681,124 +707,5 @@ public class RainTransmitterService extends Service {
                 }
             }
         }
-    }
-
-    private void getAmbientSoundLevel() {
-        long startTime = System.currentTimeMillis();
-        int i = 0;
-        isFirstTaskRunning = true;
-
-        ambientSoundArr = new ArrayList<>();
-        while ((startTime + 10000 >  System.currentTimeMillis())
-                && isRecording
-                && !isSecondTaskRunning)
-        {
-            //Data gathering, right now not recording to file
-            byte sData[] = new byte[Constants.frameByteSize];
-            sound = new double[numberOfSamples];
-            // gets the voice output from microphone to byte format
-            recorderThread.audioRecord.read(sData, 0, Constants.frameByteSize);
-                //TODO: Add array here to limit amount of captured data if it the sampling rate is too high
-                double out5 = Utilities.getPower(sData);
-                if (position < numberOfSamples) {
-                    sound[position] = out5;
-                    position++;
-                }
-                if (position == numberOfSamples) {
-                    final double powerIndB = Utilities.calculatePowerDb(sound, 0, numberOfSamples);
-                    ambientSoundArr.add(powerIndB);
-                    position = 0;
-                }
-        } //End of while loop
-
-        Log.d(TAG, "Ending recording of ambient sound...");
-        isFirstTaskRunning = false;
-        //Check ambient sound levels
-        if (isAmbientSoundLevelHigherThanThreshold(ambientSoundArr)) {
-            //Clear up data in arr
-            ambientSoundArr.clear();
-            ambientSoundArr = null;
-            Log.d(TAG, "Threshold met...");
-            if (!isSecondTaskRunning) {
-                recordAudioForAnalysis();
-            }
-        } else {
-            Log.d(TAG, "Threshold not met...");
-            isRecording = false; //if less than threshold, turn off
-        }
-    }
-
-    private void recordAudioForAnalysis() {
-        Log.d(TAG, "Starting recording of audio for analysis...");
-        long startTime = System.currentTimeMillis();
-        int i = 0;
-        isSecondTaskRunning = true;
-
-        //Logging
-        audioFileName = setupName() + "-Tx";
-        Log.d(TAG, "iterateLoggingPCMFiles()" + convertMillisToTimeFormat(System.currentTimeMillis()));
-        file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".pcm");
-
-        try {
-            os = new FileOutputStream(file);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        //Loop
-        while ((startTime + 30000 >  System.currentTimeMillis())
-                && isRecording
-                && isSecondTaskRunning)
-        {
-            //Data gathering
-            byte sData[] = new byte[Constants.frameByteSize];
-            sound = new double[numberOfSamples];
-            // gets the voice output from microphone to byte format
-            recorderThread.audioRecord.read(sData, 0, Constants.frameByteSize);
-            try {
-                //TODO: Add array here to limit amount of captured data if it the sampling rate is too high
-                double out5 = Utilities.getPower(sData);
-                String audioData = setupDate() + "," + Utilities.roundDown(out5, 3);
-                if (position < numberOfSamples) {
-                    sound[position] = out5;
-                    position++;
-                }
-                if (position == numberOfSamples) {
-                    final double powerIndB = Utilities.calculatePowerDb(sound, 0, numberOfSamples);
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            processAndSend(Utilities.roundDown(powerIndB, 3));
-                        }
-                    }).start();
-                    position = 0;
-                }
-                audioLog.write(audioData + "\r\n");
-                os.write(sData, 0, Constants.frameByteSize);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        } //End of while loop
-
-        //File closing
-        try {
-            if (os != null)
-                os.close();
-        } catch (IOException f) {
-            f.printStackTrace();
-        }
-
-        os = null;
-
-        isRecording = false;
-        isSecondTaskRunning = false;
-        Log.d(TAG, "Ending recording of audio for analysis...");
-    }
-
-    private boolean isAmbientSoundLevelHigherThanThreshold(ArrayList<Double> ambientSound) {
-        Random random = new Random();
-        boolean b = random.nextBoolean();
-        Log.d(TAG, "isAmbientSoundLevelHigherThanThreshold(): " + b + ", " + ambientSound.size());
-        return b;
     }
 }
