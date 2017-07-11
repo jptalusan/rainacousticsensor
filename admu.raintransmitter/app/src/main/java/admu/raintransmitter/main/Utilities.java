@@ -10,6 +10,9 @@ import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.util.Log;
 
+import java.util.Iterator;
+import java.util.List;
+
 /**
  * Created by jptalusan on 7/2/17.
  */
@@ -155,5 +158,16 @@ public class Utilities {
             }
         }
         return null;
+    }
+
+    public static double[] convertDoubles(List<Double> doubles)
+    {
+        double[] ret = new double[doubles.size()];
+        Iterator<Double> iterator = doubles.iterator();
+        for (int i = 0; i < ret.length; i++)
+        {
+            ret[i] = iterator.next().intValue();
+        }
+        return ret;
     }
 }

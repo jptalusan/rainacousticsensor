@@ -22,6 +22,7 @@ import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
 import android.telephony.TelephonyManager;
 import android.util.Log;
+import android.widget.ListAdapter;
 import android.widget.Toast;
 
 import java.io.File;
@@ -685,11 +686,10 @@ public class RainTransmitterService extends Service {
 
     private void getAmbientSoundLevel() {
         long startTime = System.currentTimeMillis();
-        int i = 0;
         isFirstTaskRunning = true;
 
         ambientSoundArr = new ArrayList<>();
-        while ((startTime + 10000 >  System.currentTimeMillis())
+        while ((startTime + Constants.AMBIENT_AUDIO_RECORDING_TIME >  System.currentTimeMillis())
                 && isRecording
                 && !isSecondTaskRunning)
         {
@@ -705,8 +705,13 @@ public class RainTransmitterService extends Service {
                     position++;
                 }
                 if (position == numberOfSamples) {
-                    final double powerIndB = Utilities.calculatePowerDb(sound, 0, numberOfSamples);
-                    ambientSoundArr.add(powerIndB);
+                    double ave = 0.0;
+                    for (int i = 0; i < numberOfSamples; ++i) {
+                        ave += sound[i];
+                    }
+                    ave /= numberOfSamples;
+//                    final double powerIndB = Utilities.calculatePowerDb(sound, 0, numberOfSamples);
+                    ambientSoundArr.add(ave);
                     position = 0;
                 }
         } //End of while loop
@@ -746,9 +751,9 @@ public class RainTransmitterService extends Service {
         }
 
         //Loop
-        while ((startTime + 30000 >  System.currentTimeMillis())
+        while ((startTime + Constants.DATA_AUDIO_RECORDING_TIME >  System.currentTimeMillis())
                 && isRecording
-                && isSecondTaskRunning)
+                && !isFirstTaskRunning)
         {
             //Data gathering
             byte sData[] = new byte[Constants.frameByteSize];
@@ -796,9 +801,11 @@ public class RainTransmitterService extends Service {
     }
 
     private boolean isAmbientSoundLevelHigherThanThreshold(ArrayList<Double> ambientSound) {
-        Random random = new Random();
-        boolean b = random.nextBoolean();
-        Log.d(TAG, "isAmbientSoundLevelHigherThanThreshold(): " + b + ", " + ambientSound.size());
-        return b;
+        double[] arr = Utilities.convertDoubles(ambientSound);
+
+        double ambientSoundPower = Utilities.calculatePowerDb(arr, 0, ambientSound.size());
+
+        Log.d(TAG, "isAmbientSoundLevelHigherThanThreshold(): " + ambientSoundPower + "/" + Constants.THRESHOLD);
+        return ambientSoundPower > Constants.THRESHOLD;
     }
 }

@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="admu.raintransmitter.main"
-    android:versionCode="2"
-    android:versionName="2.0" >
+    package="admu.raintransmitter.main" >
 
     <!-- requires explicit permissions -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
