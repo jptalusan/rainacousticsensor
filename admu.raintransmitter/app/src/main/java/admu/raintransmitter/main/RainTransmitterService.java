@@ -515,6 +515,8 @@ public class RainTransmitterService extends Service {
                 Log.d(TAG, "Number of samples per sec: " + numberOfSamples);
 
                 isWaitingToStart = false;
+
+                //TODO: is this still needed?
                 try {
                     Thread.sleep(2000);
                 } catch (InterruptedException e) {
@@ -536,7 +538,7 @@ public class RainTransmitterService extends Service {
                     getAmbientSoundLevel();
                 }
             }
-        }, 0, 60000);
+        }, 0, Constants.AMBIENT_AUDIO_RECORDING_TIME + Constants.DATA_AUDIO_RECORDING_TIME + 10000);
     }
 
     public void stopSamplerTimer() {
@@ -728,7 +730,8 @@ public class RainTransmitterService extends Service {
                 recordAudioForAnalysis();
             }
         } else {
-            Log.d(TAG, "Threshold not met...");
+            long time = System.currentTimeMillis() + Constants.DATA_AUDIO_RECORDING_TIME + Constants.DATA_AUDIO_RECORDING_TIME + 10000;
+            Log.d(TAG, "Threshold not met, will record again in " + convertMillisToTimeFormat(time) +"...");
             isRecording = false; //if less than threshold, turn off
         }
     }
