@@ -21,6 +21,18 @@ public class Utilities {
     private static final String TAG = "Utilities";
     private static final float FUDGE = 0.6f;
 
+    static double getRawAmplitude(byte[] buffer, int bufferReadSize) {
+        double sum = 0;
+        for (int i = 0; i < buffer.length; i++) {
+            sum += Math.abs(buffer[i]);
+        }
+
+        if (bufferReadSize > 0) {
+            return sum / bufferReadSize;
+        }
+        return 0.0;
+    }
+
     static double getPower(byte[] buffer){
         /*
          * Noise level meter begins here
@@ -43,15 +55,18 @@ public class Utilities {
     {
         double sum = 0;
         double sqsum = 0;
+        Log.d("Data?", "size: " + data.length);
         for (int i = 0; i < samples; i++)
         {
             final double v = data[off + i];
+            Log.d("Data?", "sample:" + v);
             sum += v;
             sqsum += v * v;
         }
         double power = (sqsum - ((sum * sum) / samples)) / samples;
 
         double result = Math.log10(power) * 10f + FUDGE;
+        Log.d("EXTRA", "Calc Pow: " + result);
         return result;
     }
 

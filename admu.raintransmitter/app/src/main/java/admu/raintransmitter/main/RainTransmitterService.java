@@ -113,6 +113,8 @@ public class RainTransmitterService extends Service {
 
     private long currentDataTimeStamp = 0;
 
+    private float threshold = 0.0f;
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -525,7 +527,7 @@ public class RainTransmitterService extends Service {
 
                 //TODO: Fix this
 //                numberOfSamples = Utilities.computeNumberOfSamplesPerText(Constants.sampleRate, recorderThread.recBufSize);
-                numberOfSamples = 25;
+                numberOfSamples = Constants.SAMPLES_PER_SECOND;
                 Log.d(TAG, "Number of samples per sec: " + numberOfSamples);
 
                 isWaitingToStart = false;
@@ -645,6 +647,11 @@ public class RainTransmitterService extends Service {
             transmitterId = getApplicationContext()
                     .getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE)
                     .getString(Constants.TRANSMITTER_ID_KEY, "");
+            threshold = getApplicationContext()
+                    .getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE)
+                    .getFloat(Constants.THRESHOLD_KEY, 0.0f);
+
+            Log.d(TAG, "Threshold: " + threshold);
             Log.d(TAG, "Transmitter: " + transmitterId);
 
             Bundle bundle = intent.getExtras();
@@ -739,31 +746,34 @@ public class RainTransmitterService extends Service {
         isFirstTaskRunning = true;
 
         ambientSoundArr = new ArrayList<>();
+        sound = new double[numberOfSamples];
         while ((startTime + Constants.AMBIENT_AUDIO_RECORDING_TIME >  System.currentTimeMillis())
                 && isRecording
                 && !isSecondTaskRunning)
         {
             //Data gathering, right now not recording to file
             byte sData[] = new byte[Constants.frameByteSize];
-            sound = new double[numberOfSamples];
             // gets the voice output from microphone to byte format
-            recorderThread.audioRecord.read(sData, 0, Constants.frameByteSize);
-                //TODO: Add array here to limit amount of captured data if it the sampling rate is too high
-                double out5 = Utilities.getPower(sData);
-                if (position < numberOfSamples) {
-                    sound[position] = out5;
-                    position++;
+            int readSize = recorderThread.audioRecord.read(sData, 0, Constants.frameByteSize);
+            //TODO: Add array here to limit amount of captured data if it the sampling rate is too high
+            double out5 = Utilities.getPower(sData);
+//            double out5 = Utilities.getRawAmplitude(sData, readSize);
+            if (position < numberOfSamples) {
+                sound[position] = out5;
+//                Log.d(TAG, "Raw?: " + sound[position] + ", pos: " + position);
+                position++;
+            } else if (position == numberOfSamples) {
+                double sum = 0.0;
+                for (int i = 0; i < numberOfSamples; ++i) {
+//                    Log.d(TAG, "Raw2?: " + sound[i]);
+                    sum += sound[i];
                 }
-                if (position == numberOfSamples) {
-                    double ave = 0.0;
-                    for (int i = 0; i < numberOfSamples; ++i) {
-                        ave += sound[i];
-                    }
-                    ave /= numberOfSamples;
-//                    final double powerIndB = Utilities.calculatePowerDb(sound, 0, numberOfSamples);
-                    ambientSoundArr.add(ave);
-                    position = 0;
-                }
+                double ave = sum / numberOfSamples;
+//                Log.d(TAG, "Raw Ambient average: " + ave);
+                ambientSoundArr.add(ave);
+                position = 0;
+                sound = new double[numberOfSamples];
+            }
         } //End of while loop
 
         Log.d(TAG, "Ending recording of ambient sound...");
@@ -803,7 +813,7 @@ public class RainTransmitterService extends Service {
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
-
+        sound = new double[numberOfSamples];
         //Loop
         while ((startTime + Constants.DATA_AUDIO_RECORDING_TIME >  System.currentTimeMillis())
                 && isRecording
@@ -811,18 +821,19 @@ public class RainTransmitterService extends Service {
         {
             //Data gathering
             byte sData[] = new byte[Constants.frameByteSize];
-            sound = new double[numberOfSamples];
+
             // gets the voice output from microphone to byte format
-            recorderThread.audioRecord.read(sData, 0, Constants.frameByteSize);
+            int readSize = recorderThread.audioRecord.read(sData, 0, Constants.frameByteSize);
+//            Log.d(TAG, "Read size: " + readSize + ", sdatalength: " + sData.length);
             try {
                 //TODO: Add array here to limit amount of captured data if it the sampling rate is too high
                 double out5 = Utilities.getPower(sData);
                 String audioData = setupDate() + "," + Utilities.roundDown(out5, 3);
                 if (position < numberOfSamples) {
                     sound[position] = out5;
+                    Log.d(TAG, "Data?: " + sound[position] + ", pos: " + position);
                     position++;
-                }
-                if (position == numberOfSamples) {
+                } else if (position == numberOfSamples) {
                     final double powerIndB = Utilities.calculatePowerDb(sound, 0, numberOfSamples);
                     //On first run, currentDataTimeStamp = 0, return to 0 on stop-gsm and when ambient is lower than threshold
                     //To be more accurate with the times
@@ -838,6 +849,13 @@ public class RainTransmitterService extends Service {
                         }
                     }).start();
                     position = 0;
+                    sound = new double[numberOfSamples];
+                }
+
+                //TODO: Build on this as a way to record ambience before data rec is finished
+                long timeLeft = startTime + Constants.DATA_AUDIO_RECORDING_TIME - Constants.AMBIENT_AUDIO_RECORDING_TIME;
+                if (System.currentTimeMillis() > timeLeft) {
+                    Log.d("TRIAL", "Time left for ambience:" + System.currentTimeMillis());
                 }
                 audioLog.write(audioData + "\r\n");
                 os.write(sData, 0, Constants.frameByteSize);
@@ -861,15 +879,23 @@ public class RainTransmitterService extends Service {
         Log.d(TAG, "Ending recording of audio for analysis...");
     }
 
+    //If more than 80% of ambient sound values are greater than threshold, then record data
     private boolean isAmbientSoundLevelHigherThanThreshold(ArrayList<Double> ambientSound) {
-        Random random = new Random();
-        boolean b = random.nextBoolean();Log.d(TAG, "isAmbientSoundLevelHigherThanThreshold(): " + b + ", " + ambientSound.size());
+        Log.d(TAG, "isAmbientSoundLevelHigherThanThreshold: " + ambientSound.size());
+//        Random random = new Random();
+//        boolean b = random.nextBoolean();Log.d(TAG, "isAmbientSoundLevelHigherThanThreshold(): " + b + ", " + ambientSound.size());
 //        return true;
-        return b;
+//        return b;
 
-//        double[] arr = Utilities.convertDoubles(ambientSound);
-//        double ambientSoundPower = Utilities.calculatePowerDb(arr, 0, ambientSound.size());
-//        Log.d(TAG, "isAmbientSoundLevelHigherThanThreshold(): " + ambientSoundPower + "/" + Constants.THRESHOLD);
-//        return ambientSoundPower > Constants.THRESHOLD;
+        int counter = 0;
+        for (double d : ambientSound) {
+            Log.d(TAG, "compare: " + d + ": " + threshold);
+            if (d > threshold) {
+                ++counter;
+            }
+        }
+        Log.d(TAG, "counter: " + counter + "/" + Math.ceil(ambientSound.size() * Constants.EIGHTY_PERCENT));
+        //TODO: not really exact with the number of samples, just how many where sent here.
+        return counter > Math.ceil(ambientSound.size() * Constants.EIGHTY_PERCENT);
     }
 }

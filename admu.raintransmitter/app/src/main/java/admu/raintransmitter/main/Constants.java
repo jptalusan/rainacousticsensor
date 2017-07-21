@@ -30,6 +30,7 @@ public class Constants {
     public static String MONITOR_NUM_KEY = "MONITOR_NUM";
     public static String SERVER_NUM_KEY = "SERVER_NUM";
     public static String TRANSMITTER_ID_KEY = "TRANSMITTER_ID";
+    public static String THRESHOLD_KEY = "THRESHOLD";
     public static int SAMPLES = 120;
 
     // to be changed for every phone
@@ -42,15 +43,17 @@ public class Constants {
     // Recorder Thread
     static int channelConfiguration = AudioFormat.CHANNEL_IN_MONO;
     static int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
-    static int sampleRate = 8000;//44100 for actual; //8000 for emulator;
+    static int sampleRate = 44100;//44100 for actual; //8000 for emulator;
     static int frameByteSize = 2048; // for 1024 fft size (16bit sample size)
+
+    static int SAMPLES_PER_SECOND = 25; //8 for emulator 8000, 25 for 44100
 
     static int DEFAULT_LOGGER_DURATION = 600000;
     static int THIRTY_SECONDS = 30000;
 
-    static int AMBIENT_AUDIO_RECORDING_TIME = 10000;//30000;
-    static int DATA_AUDIO_RECORDING_TIME = 30000;//300000;
-    static int THREE_HOURS = 60000; //10800000;
+    static int AMBIENT_AUDIO_RECORDING_TIME = 15000;//15000; //15 seconds
+    static int DATA_AUDIO_RECORDING_TIME = 300000;//300000; //5 minutes
+    static int THREE_HOURS = 10800000; //10800000; 60000 for test
 
-    static double THRESHOLD = 30.0;
+    static double EIGHTY_PERCENT = 0.8;
 }

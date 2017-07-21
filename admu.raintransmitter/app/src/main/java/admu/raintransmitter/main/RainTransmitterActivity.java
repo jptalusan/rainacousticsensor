@@ -61,6 +61,7 @@ public class RainTransmitterActivity extends AppCompatActivity {
     private static TextView mode = null;
     private static EditText etMonitorNumber = null;
     private static EditText etServerNumber = null;
+    private static EditText etThreshold = null;
     private static Button bSave = null;
     private static Spinner transmitterSpinner = null;
 
@@ -96,18 +97,21 @@ public class RainTransmitterActivity extends AppCompatActivity {
         mode = (TextView)findViewById(R.id.mode_textview);
         etMonitorNumber = (EditText)findViewById(R.id.etMonitorNumber);
         etServerNumber = (EditText)findViewById(R.id.etServerNumber);
+        etThreshold = (EditText)findViewById(R.id.etThreshold);
         bSave = (Button)findViewById(R.id.bSave);
         transmitterSpinner = (Spinner)findViewById(R.id.transmittersSpinner);
 
         //Number to be saved should be in the format +639059716422
         etMonitorNumber.setText(sharedPref.getString(Constants.MONITOR_NUM_KEY, ""));
         etServerNumber.setText(sharedPref.getString(Constants.SERVER_NUM_KEY, ""));
+        etThreshold.setText(Float.toString(sharedPref.getFloat(Constants.THRESHOLD_KEY, 0.0f)));
 
         bSave.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 editor.putString(Constants.MONITOR_NUM_KEY, etMonitorNumber.getText().toString()).apply();
                 editor.putString(Constants.SERVER_NUM_KEY, etServerNumber.getText().toString()).apply();
+                editor.putFloat(Constants.THRESHOLD_KEY, Float.parseFloat(etThreshold.getText().toString())).apply();
                 Toast.makeText(getApplicationContext(), "Saved", Toast.LENGTH_SHORT).show();
             }
         });
