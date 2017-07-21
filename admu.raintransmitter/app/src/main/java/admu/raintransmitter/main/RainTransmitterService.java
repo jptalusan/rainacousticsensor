@@ -34,6 +34,7 @@ import java.io.OutputStreamWriter;
 import java.lang.reflect.Array;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
+import java.text.Format;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -107,6 +108,10 @@ public class RainTransmitterService extends Service {
 
     private ArrayList<Double> ambientSoundArr = null;
     private Timer ambientLevelTimer = null;
+
+    private Timer threeHourTextIfRecordingTimer = null;
+
+    private long currentDataTimeStamp = 0;
 
     @Override
     public void onCreate() {
@@ -253,6 +258,10 @@ public class RainTransmitterService extends Service {
     }
 
     //TODO: For 18 data points
+    /*
+    * Format of text message:
+    * #RT5;1500645432;1.88;1.98;13.02;4.26;7.74;2.75;14.98;12.47;-0.87;11.67;5.59;5.55;1.93;4.35;2.66;0.62;1.48;2.49#
+    */
     private void sendDataSMS(List<String[]> data) {
         Log.d(TAG, "SendDataSMS: " + data.size());
         String SENT = "SMS_SENT";
@@ -276,11 +285,13 @@ public class RainTransmitterService extends Service {
         }, new IntentFilter(SENT));
 
         //Loop this for data (since many rows) get all rows for 18 values
+        //Init data is the first row's message in the form of: #RT5;1500645432;1.88;#
         String initData = data.get(0)[2];
         StringBuilder newMsg = new StringBuilder();
         newMsg.append(initData.substring(0, initData.length() - 1));
 
         String prefix = "";
+        //Just get the sound data from the row
         for (int i = 1; i < data.size(); ++i) {
             newMsg.append(prefix);
             prefix = ";";
@@ -290,9 +301,10 @@ public class RainTransmitterService extends Service {
         newMsg.append("#");
 
         Log.d(TAG, "NewTxt:" + newMsg);
-        Log.d("EXTRA", "Start:" + data.get(0)[0] + "," + data.get(0)[1] + "," + data.get(0)[2]);
+        String destinationAddress = data.get(0)[1];
+        Log.d("EXTRA", "Start:" + data.get(0)[0] + "," + destinationAddress + "," + data.get(0)[2]);
         SmsManager sms = SmsManager.getDefault();
-        sms.sendTextMessage(data.get(0)[1], null, newMsg.toString(), sentPI, null);
+        sms.sendTextMessage(destinationAddress, null, newMsg.toString(), sentPI, null);
     }
 
     private class SignalStrengthListener extends PhoneStateListener {
@@ -332,9 +344,9 @@ public class RainTransmitterService extends Service {
         return String.valueOf(System.currentTimeMillis() / 1000);
     }
 
-    private String setupDate() {
-        long timeInSeconds = System.currentTimeMillis() / 1000;
-        return Long.toString(timeInSeconds);
+    private long setupDate() {
+        return System.currentTimeMillis() / 1000;
+        //return Long.toString(timeInSeconds);
     }
 
     private String convertMillisToTimeFormat(long timeInMillis) {
@@ -507,9 +519,11 @@ public class RainTransmitterService extends Service {
                     throw new IllegalStateException("Failed to create " + audioLog.toString());
                 }
 
+                //TODO: Refactor other timers to be the same as this recorder thread class
                 recorderThread = new RecorderThread();
                 recorderThread.start();
-                //Not yet working correctly
+
+                //TODO: Fix this
 //                numberOfSamples = Utilities.computeNumberOfSamplesPerText(Constants.sampleRate, recorderThread.recBufSize);
                 numberOfSamples = 25;
                 Log.d(TAG, "Number of samples per sec: " + numberOfSamples);
@@ -527,12 +541,25 @@ public class RainTransmitterService extends Service {
             }
         }
 
+        //Start threehourtimer to text every now and then.
+        threeHourTextIfRecordingTimer = new Timer();
+        threeHourTextIfRecordingTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                if (isRecording) {
+                    Log.d(TAG, "I'm still alive...");
+                    buffer.insertRow(controllerNumber, transmitterId + " here, I'm still alive don't worry.", "0");
+                }
+            }
+        }, Constants.THREE_HOURS, Constants.THREE_HOURS);
+
+
         //Start ambient level thread here
         ambientLevelTimer = new Timer();
         ambientLevelTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                Log.d(TAG, "Starting audio recording tasks...");
+                Log.d(TAG, "Starting ambient audio recording tasks...");
                 isRecording = true;
                 if (!isFirstTaskRunning && !isSecondTaskRunning) {
                     getAmbientSoundLevel();
@@ -569,20 +596,29 @@ public class RainTransmitterService extends Service {
         }
     }
 
+    public void stopThreeHourTimer() {
+        if (threeHourTextIfRecordingTimer != null) {
+            threeHourTextIfRecordingTimer.cancel();
+            threeHourTextIfRecordingTimer.purge();
+            threeHourTextIfRecordingTimer = null;
+        }
+    }
+
     /**
      * Saves the sound and signal arguments into both backup and buffer sqliteDBs
      * This doesn't really send anything, only saves to DB
-     * TODO: Should be in it's own class
-     * TODO: Figure out what to is being done with the server number
+     * TODO: Should send 18 data points
      * buffer receives the ff msg format: servernumber, msg (concatenated), priority (2)
      * backup receives the ff msg format: # + SENSOR.NUM + sound[5] + signal[5] + distribution of sound[10]
      * @param soundLevel
      */
-    //TODO: Concatenate 8-10 data points per text (equivalent to 10 seconds) or 140 characters. which ever comes first?
+    //Problem here is that sometimes data comes in too fast and timestamps are duplicated
+    //I think better to just increment by 1 sec here just to be safe, every time this is called just store the time stamp to currentDataTimestamp on first run
+    //each data has a duration of 1 sec
     public void processAndSend(double soundLevel) {
         // SEND //
         String msg = "#" + transmitterId + ";";
-        msg += setupDate() + ";";
+        msg += currentDataTimeStamp + ";";
         msg += ftRmsDb.format(soundLevel) + ";#";
 
         Log.d("EXTRA", "Server,msg,priority" + serverReceiverNumber + "," + msg + ",2");
@@ -594,9 +630,9 @@ public class RainTransmitterService extends Service {
      * SMSBroadCastReceiver
      * Must register a broadcast receiver for SMS since this is the trigger for turning
      * on the data gathering of the device.
-     * TODO: Right now number for "monitor" device is hard coded, must add an edit text instead
      * then save it to a shared prefs for future use and just display it there for verification.
      */
+    //TODO: to preserve data integrity, delete buffer on start if it only has less than 18 data points? since 18 seconds is negligible when you have to "restart" the app anyway.
     public class SMSBroadcastReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -609,7 +645,7 @@ public class RainTransmitterService extends Service {
             transmitterId = getApplicationContext()
                     .getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE)
                     .getString(Constants.TRANSMITTER_ID_KEY, "");
-            Log.d(TAG, "Transitter: " + transmitterId);
+            Log.d(TAG, "Transmitter: " + transmitterId);
 
             Bundle bundle = intent.getExtras();
             if (bundle != null) {
@@ -650,6 +686,7 @@ public class RainTransmitterService extends Service {
                         }
                         stopIterateLoggerTimer();
                         stopAmbientLevelTimer();
+                        stopThreeHourTimer();
 
                         try {
                             if (os != null)
@@ -662,7 +699,7 @@ public class RainTransmitterService extends Service {
 
                         isFirstTaskRunning = false;
                         isSecondTaskRunning = false;
-
+                        currentDataTimeStamp = 0;
                         sendMessageToUI(Constants.MSG_SET_STATUS_OFF, "");
                         this.abortBroadcast();
                     }
@@ -720,6 +757,10 @@ public class RainTransmitterService extends Service {
 
         Log.d(TAG, "Ending recording of ambient sound...");
         isFirstTaskRunning = false;
+
+        //TODO:move this to else once i figure out how to record ambient sound while sound recording to minimize gaps
+        currentDataTimeStamp = 0;
+
         //Check ambient sound levels
         if (isAmbientSoundLevelHigherThanThreshold(ambientSoundArr)) {
             //Clear up data in arr
@@ -730,7 +771,7 @@ public class RainTransmitterService extends Service {
                 recordAudioForAnalysis();
             }
         } else {
-            long time = System.currentTimeMillis() + Constants.DATA_AUDIO_RECORDING_TIME + Constants.DATA_AUDIO_RECORDING_TIME + 10000;
+            long time = System.currentTimeMillis() + Constants.DATA_AUDIO_RECORDING_TIME + 10000;
             Log.d(TAG, "Threshold not met, will record again in " + convertMillisToTimeFormat(time) +"...");
             isRecording = false; //if less than threshold, turn off
         }
@@ -739,7 +780,6 @@ public class RainTransmitterService extends Service {
     private void recordAudioForAnalysis() {
         Log.d(TAG, "Starting recording of audio for analysis...");
         long startTime = System.currentTimeMillis();
-        int i = 0;
         isSecondTaskRunning = true;
 
         //Logging
@@ -773,6 +813,13 @@ public class RainTransmitterService extends Service {
                 }
                 if (position == numberOfSamples) {
                     final double powerIndB = Utilities.calculatePowerDb(sound, 0, numberOfSamples);
+                    //On first run, currentDataTimeStamp = 0, return to 0 on stop-gsm and when ambient is lower than threshold
+                    //To be more accurate with the times
+                    if (currentDataTimeStamp == 0) {
+                        currentDataTimeStamp = setupDate();
+                    } else {
+                        currentDataTimeStamp++;
+                    }
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
@@ -804,11 +851,14 @@ public class RainTransmitterService extends Service {
     }
 
     private boolean isAmbientSoundLevelHigherThanThreshold(ArrayList<Double> ambientSound) {
-        double[] arr = Utilities.convertDoubles(ambientSound);
+        Random random = new Random();
+        boolean b = random.nextBoolean();Log.d(TAG, "isAmbientSoundLevelHigherThanThreshold(): " + b + ", " + ambientSound.size());
+//        return true;
+        return b;
 
-        double ambientSoundPower = Utilities.calculatePowerDb(arr, 0, ambientSound.size());
-
-        Log.d(TAG, "isAmbientSoundLevelHigherThanThreshold(): " + ambientSoundPower + "/" + Constants.THRESHOLD);
-        return ambientSoundPower > Constants.THRESHOLD;
+//        double[] arr = Utilities.convertDoubles(ambientSound);
+//        double ambientSoundPower = Utilities.calculatePowerDb(arr, 0, ambientSound.size());
+//        Log.d(TAG, "isAmbientSoundLevelHigherThanThreshold(): " + ambientSoundPower + "/" + Constants.THRESHOLD);
+//        return ambientSoundPower > Constants.THRESHOLD;
     }
 }

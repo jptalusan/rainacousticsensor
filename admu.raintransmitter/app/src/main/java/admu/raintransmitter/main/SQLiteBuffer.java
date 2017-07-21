@@ -81,8 +81,8 @@ public class SQLiteBuffer {
         while(c.moveToNext()) {
             String[] result = new String[4];
             result[0] = c.getString(0); //id
-            result[1] = c.getString(1); //number
-            result[2] = c.getString(2); //message
+            result[1] = c.getString(1); //phone number
+            result[2] = c.getString(2); //message/data
             result[3] = c.getString(3); //priority
             dataPoints.add(result);
         }
