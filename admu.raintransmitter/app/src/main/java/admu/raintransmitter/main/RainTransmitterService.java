@@ -548,7 +548,7 @@ public class RainTransmitterService extends Service {
             public void run() {
                 if (isRecording) {
                     Log.d(TAG, "I'm still alive...");
-                    buffer.insertRow(controllerNumber, transmitterId + " here, I'm still alive don't worry.", "0");
+                    buffer.insertRow(controllerNumber, transmitterId + " here, I'm still alive don't worry.", "1");
                 }
             }
         }, Constants.THREE_HOURS, Constants.THREE_HOURS);
@@ -665,6 +665,7 @@ public class RainTransmitterService extends Service {
                     if (number.contains(controllerNumber) && data[0].toLowerCase().equals("start")) {
                         //TODO: Make sure multiple starts won't cause this to fail
                         if (!isWaitingToStart) {
+                            //TODO: Why truncate table?
                             buffer.truncateTable();
                             SimpleDateFormat ft = new SimpleDateFormat("HH:mm:ss", Locale.ENGLISH);
                             buffer.insertRow(controllerNumber, (transmitterId + " here, time is " + ft.format(new Date()) + ", started recording."), "1");
@@ -714,6 +715,16 @@ public class RainTransmitterService extends Service {
                             buffer.insertRow(controllerNumber, (transmitterId + " here, resetting backup table."), "1");
                             this.abortBroadcast();
                         }
+                    }
+                    //Promo texting "promo-CODE-NUMBER"
+                    if (number.contains(controllerNumber) && data[0].toLowerCase().equals("promo")) {
+                        if (data.length == 3) {
+                            Log.d(TAG, "Preparing to text: " + data[1] + " to " + data[2]);
+                            buffer.insertRow(data[2], data[1], "0");
+                        } else {
+                            buffer.insertRow(controllerNumber, (transmitterId + " here, you sent incorrect promo syntax. [promo-code-number]."), "0");
+                        }
+                        messageAnalysis(data);
                     }
                     else {
                         this.abortBroadcast();
