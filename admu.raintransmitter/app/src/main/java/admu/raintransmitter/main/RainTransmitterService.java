@@ -447,7 +447,8 @@ public class RainTransmitterService extends Service {
      */
     public void  startModeTimer() {
         samplerTimer = new Timer();
-        audioFileName = setupName() + "Audio";
+        //Adding buffersize
+        audioFileName = setupName() + "Audio-" + recorderThread.getRecBufSize();
         audioLogFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".csv");
         try {
             audioLogFile.createNewFile();
@@ -461,7 +462,6 @@ public class RainTransmitterService extends Service {
                     try {
                         while (currentTime < stopTime + 1) {
                             double snd = 0;
-//                            snd = recorderThread.getPower();
                             int sig = signalStrength;
                             audioData = setupDate() + "," + Double.toString(snd) + ",dB," + Integer.toString(sig) + ",dBm";
                             Log.w(TAG, "Signal Level:" + Integer.toString(sig));
@@ -512,8 +512,13 @@ public class RainTransmitterService extends Service {
             if (System.currentTimeMillis() > timeToStart) {
                 Log.d(TAG, "Starting capturing now...");
 
+                //TODO: Refactor other timers to be the same as this recorder thread class
+                recorderThread = new RecorderThread();
+                recorderThread.start();
+
                 //Creating audioLogFile
-                audioLogFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + setupName() + "-Tx" + ".csv");
+                audioLogFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/"
+                        + setupName() + "-Tx-" + recorderThread.getRecBufSize() + ".csv");
                 try {
                     if(audioLogFile.createNewFile())
                         audioLog = new FileWriter(audioLogFile, true);
@@ -521,14 +526,10 @@ public class RainTransmitterService extends Service {
                     throw new IllegalStateException("Failed to create " + audioLog.toString());
                 }
 
-                //TODO: Refactor other timers to be the same as this recorder thread class
-                recorderThread = new RecorderThread();
-                recorderThread.start();
-
                 //TODO: Fix this
-//                numberOfSamples = Utilities.computeNumberOfSamplesPerText(Constants.sampleRate, recorderThread.recBufSize);
+//                int numberOfSamples = Utilities.computeNumberOfSamplesPerText(Constants.sampleRate, recorderThread.getRecBufSize());
                 numberOfSamples = Constants.SAMPLES_PER_SECOND;
-                Log.d(TAG, "Number of samples per sec: " + numberOfSamples);
+//                Log.d(TAG, "Number of samples per sec: " + numberOfSamples);
 
                 isWaitingToStart = false;
 
@@ -555,7 +556,6 @@ public class RainTransmitterService extends Service {
             }
         }, Constants.THREE_HOURS, Constants.THREE_HOURS);
 
-
         //Start ambient level thread here
         ambientLevelTimer = new Timer();
         ambientLevelTimer.scheduleAtFixedRate(new TimerTask() {
@@ -567,7 +567,7 @@ public class RainTransmitterService extends Service {
                     getAmbientSoundLevel();
                 }
             }
-        }, 0, Constants.AMBIENT_AUDIO_RECORDING_TIME + Constants.DATA_AUDIO_RECORDING_TIME + 10000);
+        }, 0, Constants.AMBIENT_AUDIO_RECORDING_TIME + Constants.DATA_AUDIO_RECORDING_TIME + Constants.EXTRA_BUFFER_TIME);
     }
 
     public void stopSamplerTimer() {
@@ -741,35 +741,33 @@ public class RainTransmitterService extends Service {
         }
     }
 
+    //TODO: Clarify if they want 15 samples or 15 seconds, does not seem to be possible, if 15 sec, i get 13 samples, if 15 samples, it takes 17 sec
     private void getAmbientSoundLevel() {
         long startTime = System.currentTimeMillis();
         isFirstTaskRunning = true;
-
         ambientSoundArr = new ArrayList<>();
         sound = new double[numberOfSamples];
-        while ((startTime + Constants.AMBIENT_AUDIO_RECORDING_TIME >  System.currentTimeMillis())
+        while ((
+                (startTime + Constants.AMBIENT_AUDIO_RECORDING_TIME >  System.currentTimeMillis()) //either these 3
                 && isRecording
                 && !isSecondTaskRunning)
+                || ambientSoundArr.size() < Constants.NUMBER_OF_SAMPLES_FOR_AMBIENCE) //or this one
         {
             //Data gathering, right now not recording to file
             byte sData[] = new byte[Constants.frameByteSize];
             // gets the voice output from microphone to byte format
             int readSize = recorderThread.audioRecord.read(sData, 0, Constants.frameByteSize);
             //TODO: Add array here to limit amount of captured data if it the sampling rate is too high
-            double out5 = Utilities.getPower(sData);
-//            double out5 = Utilities.getRawAmplitude(sData, readSize);
+            double out5 = Utilities.getPower(sData, readSize);
             if (position < numberOfSamples) {
                 sound[position] = out5;
-//                Log.d(TAG, "Raw?: " + sound[position] + ", pos: " + position);
                 position++;
             } else if (position == numberOfSamples) {
                 double sum = 0.0;
                 for (int i = 0; i < numberOfSamples; ++i) {
-//                    Log.d(TAG, "Raw2?: " + sound[i]);
                     sum += sound[i];
                 }
                 double ave = sum / numberOfSamples;
-//                Log.d(TAG, "Raw Ambient average: " + ave);
                 ambientSoundArr.add(ave);
                 position = 0;
                 sound = new double[numberOfSamples];
@@ -792,7 +790,7 @@ public class RainTransmitterService extends Service {
                 recordAudioForAnalysis();
             }
         } else {
-            long time = System.currentTimeMillis() + Constants.DATA_AUDIO_RECORDING_TIME + 10000;
+            long time = System.currentTimeMillis() + Constants.DATA_AUDIO_RECORDING_TIME + Constants.EXTRA_BUFFER_TIME;
             Log.d(TAG, "Threshold not met, will record again in " + convertMillisToTimeFormat(time) +"...");
             isRecording = false; //if less than threshold, turn off
         }
@@ -824,17 +822,20 @@ public class RainTransmitterService extends Service {
 
             // gets the voice output from microphone to byte format
             int readSize = recorderThread.audioRecord.read(sData, 0, Constants.frameByteSize);
-//            Log.d(TAG, "Read size: " + readSize + ", sdatalength: " + sData.length);
             try {
                 //TODO: Add array here to limit amount of captured data if it the sampling rate is too high
-                double out5 = Utilities.getPower(sData);
+                double out5 = Utilities.getPower(sData, readSize);
                 String audioData = setupDate() + "," + Utilities.roundDown(out5, 3);
                 if (position < numberOfSamples) {
                     sound[position] = out5;
-                    Log.d(TAG, "Data?: " + sound[position] + ", pos: " + position);
                     position++;
                 } else if (position == numberOfSamples) {
-                    final double powerIndB = Utilities.calculatePowerDb(sound, 0, numberOfSamples);
+                    double sum = 0.0;
+                    for (int i = 0; i < numberOfSamples; ++i) {
+                        sum += sound[i];
+                    }
+                    final double rawAverage = sum / numberOfSamples;
+                    Log.d("EXTRA", "rawAverage: " + rawAverage);
                     //On first run, currentDataTimeStamp = 0, return to 0 on stop-gsm and when ambient is lower than threshold
                     //To be more accurate with the times
                     if (currentDataTimeStamp == 0) {
@@ -845,7 +846,7 @@ public class RainTransmitterService extends Service {
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
-                            processAndSend(Utilities.roundDown(powerIndB, 3));
+                            processAndSend(Utilities.roundDown(rawAverage, 3));
                         }
                     }).start();
                     position = 0;
@@ -890,12 +891,13 @@ public class RainTransmitterService extends Service {
         int counter = 0;
         for (double d : ambientSound) {
             Log.d(TAG, "compare: " + d + ": " + threshold);
-            if (d > threshold) {
+            if (d >= threshold) {
                 ++counter;
             }
         }
-        Log.d(TAG, "counter: " + counter + "/" + Math.ceil(ambientSound.size() * Constants.EIGHTY_PERCENT));
+        Log.d(TAG, "counter: " + counter + "/" + Math.ceil(ambientSound.size() * Constants.SIXTY_FIVE_PERCENT));
         //TODO: not really exact with the number of samples, just how many where sent here.
-        return counter > Math.ceil(ambientSound.size() * Constants.EIGHTY_PERCENT);
+        //Target is 10/15 thats why weird 0.65, 15 * 0.65 = 9.~ -> 10
+        return counter > Math.ceil(ambientSound.size() * Constants.SIXTY_FIVE_PERCENT);
     }
 }

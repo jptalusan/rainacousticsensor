@@ -1,16 +1,14 @@
 package admu.raintransmitter.main;
 
-import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
 import android.util.Log;
 
 public class RecorderThread extends Thread {
     private static final String TAG = "RecorderThread";
-    public AudioRecord audioRecord;
-    public int recBufSize = 0;
-
-    public RecorderThread(){
+    AudioRecord audioRecord;
+    private int recBufSize = 0;
+    RecorderThread(){
         recBufSize = AudioRecord.getMinBufferSize(
                 Constants.sampleRate,
                 Constants.channelConfiguration,
@@ -18,14 +16,14 @@ public class RecorderThread extends Thread {
 
         Log.d(TAG, "min. buffer size: " + recBufSize);
         audioRecord = new AudioRecord(
-                MediaRecorder.AudioSource.MIC,
+                MediaRecorder.AudioSource.DEFAULT,
                 Constants.sampleRate,
                 Constants.channelConfiguration,
                 Constants.audioEncoding,
                 recBufSize);
     }
 
-    public void startRecording(){
+    void startRecording(){
         try{
             audioRecord.startRecording();
         } catch (Exception e) {
@@ -33,7 +31,7 @@ public class RecorderThread extends Thread {
         }
     }
 
-    public void stopRecording(){
+    void stopRecording(){
         try{
             audioRecord.stop();
         } catch (Exception e) {
@@ -43,5 +41,9 @@ public class RecorderThread extends Thread {
 
     public void run() {
         startRecording();
+    }
+
+    public int getRecBufSize() {
+        return recBufSize;
     }
 }

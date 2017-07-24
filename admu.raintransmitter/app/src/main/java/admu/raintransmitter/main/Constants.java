@@ -46,14 +46,17 @@ public class Constants {
     static int sampleRate = 44100;//44100 for actual; //8000 for emulator;
     static int frameByteSize = 2048; // for 1024 fft size (16bit sample size)
 
-    static int SAMPLES_PER_SECOND = 25; //8 for emulator 8000, 25 for 44100
+    static int SAMPLES_PER_SECOND = 40; //8 for emulator 8000, 40 for 44100
 
     static int DEFAULT_LOGGER_DURATION = 600000;
     static int THIRTY_SECONDS = 30000;
 
+    static int EXTRA_BUFFER_TIME = 5000;
     static int AMBIENT_AUDIO_RECORDING_TIME = 15000;//15000; //15 seconds
     static int DATA_AUDIO_RECORDING_TIME = 300000;//300000; //5 minutes
     static int THREE_HOURS = 10800000; //10800000; 60000 for test
 
-    static double EIGHTY_PERCENT = 0.8;
+    static int NUMBER_OF_SAMPLES_FOR_AMBIENCE = AMBIENT_AUDIO_RECORDING_TIME / 1000;
+
+    static double SIXTY_FIVE_PERCENT = 0.65;
 }

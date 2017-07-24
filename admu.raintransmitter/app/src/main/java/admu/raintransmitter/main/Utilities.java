@@ -19,21 +19,8 @@ import java.util.List;
 
 public class Utilities {
     private static final String TAG = "Utilities";
-    private static final float FUDGE = 0.6f;
 
-    static double getRawAmplitude(byte[] buffer, int bufferReadSize) {
-        double sum = 0;
-        for (int i = 0; i < buffer.length; i++) {
-            sum += Math.abs(buffer[i]);
-        }
-
-        if (bufferReadSize > 0) {
-            return sum / bufferReadSize;
-        }
-        return 0.0;
-    }
-
-    static double getPower(byte[] buffer){
+    static double getPower(byte[] buffer, int readSize){
         /*
          * Noise level meter begins here
          */
@@ -42,32 +29,16 @@ public class Utilities {
         for (byte b : buffer) {
             rms += b * b;
         }
-        double out = Math.sqrt(rms / buffer.length);
-        Log.d("EXTRA", "Power: " + out);
-        return out;
+        if (readSize > 0) {
+            double out = Math.sqrt(rms / readSize);
+            Log.d("EXTRA", "Read Size/Power: " + readSize + "/" + out);
+            return out;
+        }
+        return 0;
     }
 
     static double roundDown(double d, int places) {
         return Math.round(d * Math.pow(10, places)) / Math.pow(10, places);
-    }
-
-    static double calculatePowerDb(double[] data, int off, int samples)
-    {
-        double sum = 0;
-        double sqsum = 0;
-        Log.d("Data?", "size: " + data.length);
-        for (int i = 0; i < samples; i++)
-        {
-            final double v = data[off + i];
-            Log.d("Data?", "sample:" + v);
-            sum += v;
-            sqsum += v * v;
-        }
-        double power = (sqsum - ((sum * sum) / samples)) / samples;
-
-        double result = Math.log10(power) * 10f + FUDGE;
-        Log.d("EXTRA", "Calc Pow: " + result);
-        return result;
     }
 
     static int computeNumberOfSamplesPerText(double sampleRate, double bufferSize) {
@@ -76,45 +47,6 @@ public class Utilities {
         bufferSize /= 2; //IF 16 BIT PCM
         temp = bufferSize / sampleRate * 1000;
         return (int)(1000 / temp);
-    }
-
-    public static void doRestart(Context c) {
-        try {
-            //check if the context is given
-            if (c != null) {
-                //fetch the packagemanager so we can get the default launch activity
-                // (you can replace this intent with any other activity if you want
-                PackageManager pm = c.getPackageManager();
-                //check if we got the PackageManager
-                if (pm != null) {
-                    //create the intent with the default start activity for your application
-                    Intent mStartActivity = pm.getLaunchIntentForPackage(
-                            c.getPackageName()
-                    );
-                    if (mStartActivity != null) {
-                        mStartActivity.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                        //create a pending intent so the application is restarted after System.exit(0) was called.
-                        // We use an AlarmManager to call this intent in 100ms
-                        int mPendingIntentId = 223344;
-                        PendingIntent mPendingIntent = PendingIntent
-                                .getActivity(c, mPendingIntentId, mStartActivity,
-                                        PendingIntent.FLAG_CANCEL_CURRENT);
-                        AlarmManager mgr = (AlarmManager) c.getSystemService(Context.ALARM_SERVICE);
-                        mgr.set(AlarmManager.RTC, System.currentTimeMillis() + 100, mPendingIntent);
-                        //kill the application
-                        System.exit(0);
-                    } else {
-                        Log.e(TAG, "Was not able to restart application, mStartActivity null");
-                    }
-                } else {
-                    Log.e(TAG, "Was not able to restart application, PM null");
-                }
-            } else {
-                Log.e(TAG, "Was not able to restart application, Context null");
-            }
-        } catch (Exception ex) {
-            Log.e(TAG, "Was not able to restart application");
-        }
     }
 
     public AudioRecord findAudioRecord() {
