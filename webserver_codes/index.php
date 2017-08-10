@@ -3,8 +3,9 @@
 SENSORS
 </HEAD>
 <BODY>
-<ul>
 
+<h2>Direct upload from Tx via SMS</h2>
+<ul>
 <li><a href="rainRTX.php?transmitter=RT1">Rain Sensor 1</a></li>
 <li><a href="rainRTX.php?transmitter=RT2">Rain Sensor 2</a></li>
 <li><a href="rainRTX.php?transmitter=RT3">Rain Sensor 3</a></li>
@@ -29,7 +30,36 @@ SENSORS
 <li><a href="downloadRTXcsv.php?transmitter=RT7">Download Rain Sensor 7 csv file</a></li>
 <li><a href="downloadRTXcsv.php?transmitter=RT8">Download Rain Sensor 8 csv file</a></li>
 </ul>
+<hr>
 
+<h2>Direct upload from Tx via wifi or mobile data</h2>
+<ul>
+<li><a href="rainRTX.php?transmitter=RT1TxDirect">Rain Sensor 1</a></li>
+<li><a href="rainRTX.php?transmitter=RT2TxDirect">Rain Sensor 2</a></li>
+<li><a href="rainRTX.php?transmitter=RT3TxDirect">Rain Sensor 3</a></li>
+<br>
+<li><a href="rainRTX.php?transmitter=RT4TxDirect">Rain Sensor 4</a></li>
+<li><a href="rainRTX.php?transmitter=RT5TxDirect">Rain Sensor 5</a></li>
+<li><a href="rainRTX.php?transmitter=RT6TxDirect">Rain Sensor 6</a></li>
+<br>
+<li><a href="rainRTX.php?transmitter=RT7TxDirect">Rain Sensor 7</a></li>
+<li><a href="rainRTX.php?transmitter=RT8TxDirect">Rain Sensor 8</a></li>
+</ul>
+
+<ul>
+<li><a href="downloadRTXcsv.php?transmitter=RT1TxDirect">Download Rain Sensor 1 csv file</a></li>
+<li><a href="downloadRTXcsv.php?transmitter=RT2TxDirect">Download Rain Sensor 2 csv file</a></li>
+<li><a href="downloadRTXcsv.php?transmitter=RT3TxDirect">Download Rain Sensor 3 csv file</a></li>
+<br>
+<li><a href="downloadRTXcsv.php?transmitter=RT4TxDirect">Download Rain Sensor 4 csv file</a></li>
+<li><a href="downloadRTXcsv.php?transmitter=RT5TxDirect">Download Rain Sensor 5 csv file</a></li>
+<li><a href="downloadRTXcsv.php?transmitter=RT6TxDirect">Download Rain Sensor 6 csv file</a></li>
+<br>
+<li><a href="downloadRTXcsv.php?transmitter=RT7TxDirect">Download Rain Sensor 7 csv file</a></li>
+<li><a href="downloadRTXcsv.php?transmitter=RT8TxDirect">Download Rain Sensor 8 csv file</a></li>
+</ul>
+
+<hr>
 <br>
 <a href="help.php">How To</a>
 <br><br>
