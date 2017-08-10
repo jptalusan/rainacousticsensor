@@ -8,7 +8,9 @@ import android.content.pm.PackageManager;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder;
+import android.net.ConnectivityManager;
 import android.util.Log;
+import android.widget.Toast;
 
 import java.util.Iterator;
 import java.util.List;
@@ -116,5 +118,22 @@ public class Utilities {
             ret[i] = iterator.next().intValue();
         }
         return ret;
+    }
+
+    public static boolean isDeviceConnected(Context context) {
+        final ConnectivityManager connMgr = (ConnectivityManager)
+                context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        final android.net.NetworkInfo wifi = connMgr.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+        final android.net.NetworkInfo mobile = connMgr.getNetworkInfo(ConnectivityManager.TYPE_MOBILE);
+        if (wifi.isConnectedOrConnecting()) {
+            Log.d(TAG, "Connected via Wifi.");
+            return true;
+        } else if (mobile.isConnectedOrConnecting()) {
+            Log.d(TAG, "Connected via Mobile data.");
+            return true;
+        } else {
+            Log.d(TAG, "Device is not connected.");
+            return false;
+        }
     }
 }

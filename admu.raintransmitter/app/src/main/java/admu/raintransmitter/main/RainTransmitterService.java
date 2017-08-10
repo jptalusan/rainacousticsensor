@@ -5,18 +5,22 @@ import android.app.Activity;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.os.Message;
 import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.RemoteException;
+import android.support.v4.util.Pair;
 import android.telephony.PhoneStateListener;
 import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
@@ -24,6 +28,15 @@ import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.widget.ListAdapter;
 import android.widget.Toast;
+
+import com.loopj.android.http.JsonHttpResponseHandler;
+import com.loopj.android.http.RequestParams;
+
+import org.apache.http.NameValuePair;
+import org.apache.http.message.BasicNameValuePair;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -45,6 +58,8 @@ import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
+
+import cz.msebera.android.httpclient.Header;
 
 public class RainTransmitterService extends Service {
     private static final String TAG = "Rain Tx Service";
@@ -286,6 +301,12 @@ public class RainTransmitterService extends Service {
             }
         }, new IntentFilter(SENT));
 
+        Pair<String, String> dataToSend = assembleRows(data);
+        SmsManager sms = SmsManager.getDefault();
+        sms.sendTextMessage(dataToSend.first, null, dataToSend.second, sentPI, null);
+    }
+
+    private Pair<String, String> assembleRows(List<String[]> data) {
         //Loop this for data (since many rows) get all rows for 18 values
         //Init data is the first row's message in the form of: #RT5;1500645432;1.88;#
         String initData = data.get(0)[2];
@@ -305,8 +326,8 @@ public class RainTransmitterService extends Service {
         Log.d(TAG, "NewTxt:" + newMsg);
         String destinationAddress = data.get(0)[1];
         Log.d("EXTRA", "Start:" + data.get(0)[0] + "," + destinationAddress + "," + data.get(0)[2]);
-        SmsManager sms = SmsManager.getDefault();
-        sms.sendTextMessage(destinationAddress, null, newMsg.toString(), sentPI, null);
+
+        return new Pair<>(destinationAddress, newMsg.toString());
     }
 
     private class SignalStrengthListener extends PhoneStateListener {
@@ -402,6 +423,7 @@ public class RainTransmitterService extends Service {
     //TODO: should have the data to be sent in a different priority? so that it would check if there are more than 18 of them then attempt to send all 18
     //then delete all 18 rows after
     //Else if only notification send them immediately and then delete.
+    //Add capability to check if connected to net and then send via Wifi/Mobile if possible (text is last resort)
     public void startLoggerTimer() {
         loggerTimer = null;
         loggerTimer = new Timer();
@@ -415,8 +437,16 @@ public class RainTransmitterService extends Service {
                     sendSMS(buffer.getFirstRow("1"));
                 } else if (buffer.getNumberRows("2") >= 18) {
                     //Where the data is being sent
-                    sendDataSMS(buffer.getXNumberOfDataPoints(18));
-//                    sendSMS(buffer.getFirstRow("2"));
+                    //Check first if net is available
+                    if (Utilities.isDeviceConnected(getApplicationContext())) {
+                        try {
+                            postRainData(buffer.getXNumberOfDataPoints(18));
+                        } catch (JSONException e) {
+
+                        }
+                    } else {
+                        sendDataSMS(buffer.getXNumberOfDataPoints(18));
+                    }
                 }
                 // check battery
                 int bat = getBatteryLevel();
@@ -689,7 +719,8 @@ public class RainTransmitterService extends Service {
                         isWaitingToStart = false;
                         if (recorderThread != null)
                             recorderThread.stopRecording();
-                        if (recordingThread.isAlive()) {
+                        if (recordingThread != null &&
+                                recordingThread.isAlive()) {
                             recordingThread.interrupt();
                         }
                         stopIterateLoggerTimer();
@@ -699,8 +730,10 @@ public class RainTransmitterService extends Service {
                         try {
                             if (os != null)
                                 os.close();
-                            audioLog.flush();
-                            audioLog.close();
+                            if (audioLog != null) {
+                                audioLog.flush();
+                                audioLog.close();
+                            }
                         } catch (IOException f) {
                             f.printStackTrace();
                         }
@@ -802,17 +835,18 @@ public class RainTransmitterService extends Service {
         isSecondTaskRunning = true;
 
         //Logging
-        audioFileName = setupName() + "-Tx";
-        Log.d(TAG, "iterateLoggingPCMFiles()" + convertMillisToTimeFormat(System.currentTimeMillis()));
-        file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".pcm");
-
-        try {
-            os = new FileOutputStream(file);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
+//        audioFileName = setupName() + "-Tx";
+//        Log.d(TAG, "iterateLoggingPCMFiles()" + convertMillisToTimeFormat(System.currentTimeMillis()));
+//        file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".pcm");
+//
+//        try {
+//            os = new FileOutputStream(file);
+//        } catch (FileNotFoundException e) {
+//            e.printStackTrace();
+//        }
         sound = new double[numberOfSamples];
         //Loop
+        //TODO: Fix race condition, this may finish without the last N seconds or samples have been written to sound[pos]
         while ((startTime + Constants.DATA_AUDIO_RECORDING_TIME >  System.currentTimeMillis())
                 && isRecording
                 && !isFirstTaskRunning)
@@ -859,21 +893,21 @@ public class RainTransmitterService extends Service {
                     Log.d("TRIAL", "Time left for ambience:" + System.currentTimeMillis());
                 }
                 audioLog.write(audioData + "\r\n");
-                os.write(sData, 0, Constants.frameByteSize);
+//                os.write(sData, 0, Constants.frameByteSize);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         } //End of while loop
 
         //File closing
-        try {
-            if (os != null)
-                os.close();
-        } catch (IOException f) {
-            f.printStackTrace();
-        }
+//        try {
+//            if (os != null)
+//                os.close();
+//        } catch (IOException f) {
+//            f.printStackTrace();
+//        }
 
-        os = null;
+//        os = null;
 
         isRecording = false;
         isSecondTaskRunning = false;
@@ -898,6 +932,39 @@ public class RainTransmitterService extends Service {
         Log.d(TAG, "counter: " + counter + "/" + Math.ceil(ambientSound.size() * Constants.SIXTY_FIVE_PERCENT));
         //TODO: not really exact with the number of samples, just how many where sent here.
         //Target is 10/15 thats why weird 0.65, 15 * 0.65 = 9.~ -> 10
-        return counter > Math.ceil(ambientSound.size() * Constants.SIXTY_FIVE_PERCENT);
+//        return counter > Math.ceil(ambientSound.size() * Constants.SIXTY_FIVE_PERCENT);
+        return true;//debug
     }
+
+    public void postRainData(List<String[]> data) throws JSONException {
+        //Assemble data here
+        Pair<String, String> dataToSend = assembleRows(data);
+        final List<String[]> fData = data;
+        final RequestParams params = new RequestParams("data", dataToSend.second);
+        Handler asyncHttpPost = new Handler(Looper.getMainLooper());
+        asyncHttpPost.post(new Runnable() {
+            @Override
+            public void run() {
+                CustomHttpClient.post("insert_via_transmitter.php", params, new JsonHttpResponseHandler() {
+                    @Override
+                    public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
+                        Log.d(TAG, "postRainData:" + response.toString());
+                        try {
+                            String result = response.getString("result");
+                            if (result.toLowerCase().equals("success")) {
+                                for (String[] sArr: fData) {
+                                    Log.d("EXTRA", "Deleting row: " + sArr[0]);
+                                    buffer.deleteRow(Integer.parseInt(sArr[0]));
+                                }
+                            }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+
+                    }
+                });
+            }
+        });
+    }
+
 }
