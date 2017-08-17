@@ -100,6 +100,7 @@ public class RainTransmitterService extends Service {
     private long stopTime;
     private String controllerNumber = "";
     private String serverReceiverNumber = "";
+    private String serverUrl = "";
 
     private static final DecimalFormat ftRmsDb = new DecimalFormat("0.00");
     private static final SimpleDateFormat hms = new SimpleDateFormat("HH:mm:ss", Locale.ENGLISH);
@@ -435,6 +436,14 @@ public class RainTransmitterService extends Service {
                     sendSMS(buffer.getFirstRow("0"));
                 } else if (buffer.getNumberRows("1") > 0) {
                     sendSMS(buffer.getFirstRow("1"));
+                } else if (buffer.getNumberRows("4") > 0) { //hack for all received texts
+                    if (Utilities.isDeviceConnected(getApplicationContext())) {
+                        try {
+                            postTextData(buffer.getFirstRow("4"), transmitterId);
+                        } catch (JSONException e) {
+
+                        }
+                    } //no need to send sms received texts (just to server)
                 } else if (buffer.getNumberRows("2") >= 18) {
                     //Where the data is being sent
                     //Check first if net is available
@@ -680,9 +689,13 @@ public class RainTransmitterService extends Service {
             threshold = getApplicationContext()
                     .getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE)
                     .getFloat(Constants.THRESHOLD_KEY, 0.0f);
+            serverUrl = getApplicationContext()
+                    .getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE)
+                    .getString(Constants.SERVER_URL_KEY, "");
 
             Log.d(TAG, "Threshold: " + threshold);
             Log.d(TAG, "Transmitter: " + transmitterId);
+            Log.d(TAG, "Server URL:" + serverUrl);
 
             Bundle bundle = intent.getExtras();
             if (bundle != null) {
@@ -695,6 +708,10 @@ public class RainTransmitterService extends Service {
                     String number = messages[i].getOriginatingAddress();
                     Log.i(TAG,"Received SMS: " + number + ":" + body);
                     Log.i(TAG,"Controller No." + controllerNumber);
+
+                    //Saving received messages to buffer with priority 1 for sending to server
+                    buffer.insertRow(number, transmitterId + ";" + setupName() + ";" + body, "4");
+
                     String[] data = body.split("-");
                     if (data.length <= 0) {
                         this.abortBroadcast();
@@ -917,11 +934,6 @@ public class RainTransmitterService extends Service {
     //If more than 80% of ambient sound values are greater than threshold, then record data
     private boolean isAmbientSoundLevelHigherThanThreshold(ArrayList<Double> ambientSound) {
         Log.d(TAG, "isAmbientSoundLevelHigherThanThreshold: " + ambientSound.size());
-//        Random random = new Random();
-//        boolean b = random.nextBoolean();Log.d(TAG, "isAmbientSoundLevelHigherThanThreshold(): " + b + ", " + ambientSound.size());
-//        return true;
-//        return b;
-
         int counter = 0;
         for (double d : ambientSound) {
             Log.d(TAG, "compare: " + d + ": " + threshold);
@@ -932,8 +944,8 @@ public class RainTransmitterService extends Service {
         Log.d(TAG, "counter: " + counter + "/" + Math.ceil(ambientSound.size() * Constants.SIXTY_FIVE_PERCENT));
         //TODO: not really exact with the number of samples, just how many where sent here.
         //Target is 10/15 thats why weird 0.65, 15 * 0.65 = 9.~ -> 10
-//        return counter > Math.ceil(ambientSound.size() * Constants.SIXTY_FIVE_PERCENT);
-        return true;//debug
+        return counter > Math.ceil(ambientSound.size() * Constants.SIXTY_FIVE_PERCENT);
+//        return false;//debug
     }
 
     public void postRainData(List<String[]> data) throws JSONException {
@@ -942,10 +954,11 @@ public class RainTransmitterService extends Service {
         final List<String[]> fData = data;
         final RequestParams params = new RequestParams("data", dataToSend.second);
         Handler asyncHttpPost = new Handler(Looper.getMainLooper());
+        //server url should be = http://rainsensor.excthackathon.x10host.com
         asyncHttpPost.post(new Runnable() {
             @Override
             public void run() {
-                CustomHttpClient.post("insert_via_transmitter.php", params, new JsonHttpResponseHandler() {
+                CustomHttpClient.post(serverUrl, params, new JsonHttpResponseHandler() {
                     @Override
                     public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
                         Log.d(TAG, "postRainData:" + response.toString());
@@ -967,4 +980,36 @@ public class RainTransmitterService extends Service {
         });
     }
 
+    public void postTextData(String[] data, String tId) throws JSONException {
+        //data[1] - phone number
+        //data[2] - message
+        final String id = data[0];
+        final RequestParams params = new RequestParams();
+        params.put("transmitter", tId);
+        params.put("phoneNumber", data[1]);
+        params.put("message", data[2]);
+        Handler asyncHttpPost = new Handler(Looper.getMainLooper());
+        //server url should be = http://rainsensor.excthackathon.x10host.com
+        asyncHttpPost.post(new Runnable() {
+            @Override
+            public void run() {
+                CustomHttpClientForTexts.post(serverUrl, params, new JsonHttpResponseHandler() {
+                    @Override
+                    public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
+                        Log.d(TAG, "postTextData:" + response.toString());
+                        try {
+                            String result = response.getString("result");
+                            if (result.toLowerCase().equals("success")) {
+                                Log.d("EXTRA", "Deleting row: " + id);
+                                buffer.deleteRow(Integer.parseInt(id));
+                            }
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+
+                    }
+                });
+            }
+        });
+    }
 }

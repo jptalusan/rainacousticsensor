@@ -62,6 +62,7 @@ public class RainTransmitterActivity extends AppCompatActivity {
     private static EditText etMonitorNumber = null;
     private static EditText etServerNumber = null;
     private static EditText etThreshold = null;
+    private static EditText etServerUrl = null;
     private static Button bSave = null;
     private static Spinner transmitterSpinner = null;
 
@@ -98,6 +99,7 @@ public class RainTransmitterActivity extends AppCompatActivity {
         etMonitorNumber = (EditText)findViewById(R.id.etMonitorNumber);
         etServerNumber = (EditText)findViewById(R.id.etServerNumber);
         etThreshold = (EditText)findViewById(R.id.etThreshold);
+        etServerUrl = (EditText)findViewById(R.id.etServerUrl);
         bSave = (Button)findViewById(R.id.bSave);
         transmitterSpinner = (Spinner)findViewById(R.id.transmittersSpinner);
 
@@ -105,6 +107,7 @@ public class RainTransmitterActivity extends AppCompatActivity {
         etMonitorNumber.setText(sharedPref.getString(Constants.MONITOR_NUM_KEY, ""));
         etServerNumber.setText(sharedPref.getString(Constants.SERVER_NUM_KEY, ""));
         etThreshold.setText(Float.toString(sharedPref.getFloat(Constants.THRESHOLD_KEY, 0.0f)));
+        etServerUrl.setText(sharedPref.getString(Constants.SERVER_URL_KEY, ""));
 
         bSave.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -112,6 +115,7 @@ public class RainTransmitterActivity extends AppCompatActivity {
                 editor.putString(Constants.MONITOR_NUM_KEY, etMonitorNumber.getText().toString()).apply();
                 editor.putString(Constants.SERVER_NUM_KEY, etServerNumber.getText().toString()).apply();
                 editor.putFloat(Constants.THRESHOLD_KEY, Float.parseFloat(etThreshold.getText().toString())).apply();
+                editor.putString(Constants.SERVER_URL_KEY, etServerUrl.getText().toString()).apply();
                 Toast.makeText(getApplicationContext(), "Saved", Toast.LENGTH_SHORT).show();
             }
         });

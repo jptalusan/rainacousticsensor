@@ -6,8 +6,8 @@ import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpResponseHandler;
 import com.loopj.android.http.RequestParams;
 
-public class CustomHttpClient {
-    private static final String EXTENSION_URL = "/insert_via_transmitter.php";
+public class CustomHttpClientForTexts {
+    private static final String EXTENSION_URL = "/insert_text_messages.php";
 
     private static AsyncHttpClient client = new AsyncHttpClient();
 
