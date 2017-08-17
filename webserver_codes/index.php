@@ -3,6 +3,9 @@
 SENSORS
 </HEAD>
 <BODY>
+<h2>Received Texts</h2>
+<a href="receivedTexts.php">Received Texts</a></li>
+<br>
 
 <h2>Direct upload from Tx via SMS</h2>
 <ul>
