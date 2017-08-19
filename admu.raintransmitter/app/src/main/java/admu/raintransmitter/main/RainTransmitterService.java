@@ -749,8 +749,9 @@ public class RainTransmitterService extends Service {
                         stopThreeHourTimer();
 
                         try {
-                            if (os != null)
+                            if (os != null) {
                                 os.close();
+                            }
                             if (audioLog != null) {
                                 audioLog.flush();
                                 audioLog.close();
@@ -895,15 +896,15 @@ public class RainTransmitterService extends Service {
         isSecondTaskRunning = true;
 
         //Logging
-//        audioFileName = setupName() + "-Tx";
-//        Log.d(TAG, "iterateLoggingPCMFiles()" + convertMillisToTimeFormat(System.currentTimeMillis()));
-//        file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".pcm");
-//
-//        try {
-//            os = new FileOutputStream(file);
-//        } catch (FileNotFoundException e) {
-//            e.printStackTrace();
-//        }
+        audioFileName = setupName() + "-Tx";
+        Log.d(TAG, "iterateLoggingPCMFiles()" + convertMillisToTimeFormat(System.currentTimeMillis()));
+        file = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/" + audioFileName + ".pcm");
+
+        try {
+            os = new FileOutputStream(file);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
         sound = new double[numberOfSamples];
         //Loop
         //TODO: Fix race condition, this may finish without the last N seconds or samples have been written to sound[pos]
@@ -953,21 +954,21 @@ public class RainTransmitterService extends Service {
                     Log.d("TRIAL", "Time left for ambience:" + System.currentTimeMillis());
                 }
                 audioLog.write(audioData + "\r\n");
-//                os.write(sData, 0, Constants.frameByteSize);
+                os.write(sData, 0, Constants.frameByteSize);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         } //End of while loop
 
-        //File closing
-//        try {
-//            if (os != null)
-//                os.close();
-//        } catch (IOException f) {
-//            f.printStackTrace();
-//        }
+        //File closing PCM
+        try {
+            if (os != null)
+                os.close();
+        } catch (IOException f) {
+            f.printStackTrace();
+        }
 
-//        os = null;
+        os = null;
 
         isRecording = false;
         isSecondTaskRunning = false;
