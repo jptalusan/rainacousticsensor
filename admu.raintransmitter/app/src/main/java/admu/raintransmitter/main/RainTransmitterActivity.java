@@ -222,7 +222,7 @@ public class RainTransmitterActivity extends AppCompatActivity {
     public static class IncomingHandler extends Handler {
         @Override
         public void handleMessage(Message msg) {
-            String str = "";
+            String str = msg.getData().getString("str");
             switch (msg.what) {
                 case Constants.MSG_SET_TEST:
                     str = msg.getData().getString("str");
@@ -249,6 +249,10 @@ public class RainTransmitterActivity extends AppCompatActivity {
                 case Constants.MSG_SET_MODE_TEST:
                     mode.setText("Transmission Mode: TEST");
                     mode.setTextColor(Color.BLUE);
+                    break;
+                case Constants.MSG_SET_UPDATE_THRESHOLD:
+                    etThreshold.setText(str);
+//                    etThreshold.setText(Float.toString(sharedPref.getFloat(Constants.THRESHOLD_KEY, 0.0f)));
                     break;
                 default:
                     super.handleMessage(msg);

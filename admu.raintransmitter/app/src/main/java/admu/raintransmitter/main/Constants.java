@@ -17,6 +17,7 @@ public class Constants {
     public static final int MSG_SET_MODE_GSM = 5;
     public static final int MSG_SET_MODE_WIFI = 6;
     public static final int MSG_SET_MODE_TEST = 7;
+    public static final int MSG_SET_UPDATE_THRESHOLD = 8;
     public static final int SAMPLER_INTERVAL = 1000; // in milliseconds
     public static final int LOGGER_INTERVAL = 25000; // in milliseconds
 

@@ -10,6 +10,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Environment;
@@ -20,6 +23,7 @@ import android.os.Message;
 import android.os.Messenger;
 import android.os.PowerManager;
 import android.os.RemoteException;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v4.util.Pair;
 import android.telephony.PhoneStateListener;
 import android.telephony.SmsManager;
@@ -781,7 +785,40 @@ public class RainTransmitterService extends Service {
                         } else {
                             buffer.insertRow(controllerNumber, (transmitterId + " here, you sent incorrect promo syntax. [promo-code-number]."), "0");
                         }
-                        messageAnalysis(data);
+//                        messageAnalysis(data);
+                    }
+                    else {
+                        this.abortBroadcast();
+                    }
+                    //Texting to modify threshold values (thresh-number)
+                    if (number.contains(controllerNumber) && data[0].toLowerCase().equals("thresh")) {
+                        if (data.length != 2) {
+                            Log.d(TAG, "Adjusting threshold to: " + data[1]);
+                            buffer.insertRow(controllerNumber, (transmitterId + " here, you sent incorrect threshold syntax. [thresh-number]."), "0");
+//                            buffer.insertRow(data[2], data[1], "0");
+                        } else {
+                            if (data[1].matches(regExp)) {
+                                float newThreshold = Float.parseFloat(data[1]);
+
+                                getApplicationContext()
+                                        .getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE)
+                                        .edit()
+                                        .putFloat(Constants.THRESHOLD_KEY, newThreshold)
+                                        .apply();
+
+                                threshold = getApplicationContext()
+                                        .getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE)
+                                        .getFloat(Constants.THRESHOLD_KEY, 0.0f);
+
+                                buffer.insertRow(controllerNumber, (transmitterId + " here, adjusting threshold to: " + threshold), "0");
+
+                                //Updates threshold edit view
+                                sendMessageToUI(Constants.MSG_SET_UPDATE_THRESHOLD, data[1]);
+                            } else {
+                                buffer.insertRow(controllerNumber, (transmitterId + " here, you sent incorrect threshold syntax, please use FLOAT. [thresh-number]."), "0");
+                            }
+                        }
+//                        messageAnalysis(data);
                     }
                     else {
                         this.abortBroadcast();
@@ -790,6 +827,9 @@ public class RainTransmitterService extends Service {
             }
         }
     }
+
+    String regExp = "[\\x00-\\x20]*[+-]?(((((\\p{Digit}+)(\\.)?((\\p{Digit}+)?)([eE][+-]?(\\p{Digit}+))?)|(\\.((\\p{Digit}+))([eE][+-]?(\\p{Digit}+))?)|(((0[xX](\\p{XDigit}+)(\\.)?)|(0[xX](\\p{XDigit}+)?(\\.)(\\p{XDigit}+)))[pP][+-]?(\\p{Digit}+)))[fFdD]?))[\\x00-\\x20]*";
+//    boolean matches = yourString.matches(regExp);
 
     //TODO: Clarify if they want 15 samples or 15 seconds, does not seem to be possible, if 15 sec, i get 13 samples, if 15 samples, it takes 17 sec
     private void getAmbientSoundLevel() {
@@ -806,6 +846,9 @@ public class RainTransmitterService extends Service {
             //Data gathering, right now not recording to file
             byte sData[] = new byte[Constants.frameByteSize];
             // gets the voice output from microphone to byte format
+            if (recorderThread.audioRecord == null) {
+                return;
+            }
             int readSize = recorderThread.audioRecord.read(sData, 0, Constants.frameByteSize);
             //TODO: Add array here to limit amount of captured data if it the sampling rate is too high
             double out5 = Utilities.getPower(sData, readSize);
