@@ -172,6 +172,8 @@ Select Transmitter and date to download corresponding CSV:
 <br>
 <li><a href="rainRTX.php?transmitter=RT7TxDirect">Rain Sensor 7</a></li>
 <li><a href="rainRTX.php?transmitter=RT8TxDirect">Rain Sensor 8</a></li>
+<br>
+<li><a href="rainRTX.php?transmitter=RT9TxDirect">Rain Sensor 9 Debug</a></li>
 </ul>
 
 <ul>

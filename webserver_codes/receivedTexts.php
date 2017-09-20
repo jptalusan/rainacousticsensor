@@ -22,17 +22,26 @@ if ($result = $mysqli->query($queryString))
 		// set table headers
 		echo "<tr>
 				<th>TRANSMITTER ID</th>
+				<th>TIMESTAMP</th>
 				<th>PHONE NUMBER</th>
 				<th>MESSAGE</th>
 			  </tr>";
 
 		while ($row = $result->fetch_object())
 		{
+			$messageArray = explode(';', $row->message); //0 tId, 1 timestamp, 2 message
+
+			$currentTimeInMillis = $messageArray[1];
+			$offset = 43200;
+			$seconds = $currentTimeInMillis + $offset;
+			$timeStamp = date("d/m/Y H:i:s", $seconds);
 			// set up a row for each record
 			echo "<tr>";
 			echo "<td>" . $row->transmitterId . "</td>";
+			echo "<td>" . $timeStamp . "</td>";
 			echo "<td>" . $row->phoneNumber . "</td>";
-			echo "<td>" . $row->message . "</td>";
+			echo "<td>" . $row->message . "</td>"; //Until changes are made to apk, use this first 
+			//echo "<td>" . $messageArray[2]. "</td>"; //use when apk have been updated
 			echo "</tr>";
 		}
 		echo "</table>";

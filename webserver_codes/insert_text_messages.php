@@ -19,7 +19,6 @@ $myObj->message = $message;
 //TODO: Process sndLevels
 $tablename = "ReceivedTexts";
 
-
 $resultQuery = $mysqli->query("INSERT INTO $tablename (
 		transmitterId, 
 		phoneNumber,
@@ -29,7 +28,6 @@ $resultQuery = $mysqli->query("INSERT INTO $tablename (
 		'$phoneNumber',
 		'$message'
 		)");
-		
 
 if($resultQuery) {
 	$myObj->result = "Success";
