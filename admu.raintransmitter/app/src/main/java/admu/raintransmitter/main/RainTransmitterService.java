@@ -436,11 +436,7 @@ public class RainTransmitterService extends Service {
             @Override
             public void run() {
                 // check if they are some sms to send
-                if (buffer.getNumberRows("0") > 0) {
-                    sendSMS(buffer.getFirstRow("0"));
-                } else if (buffer.getNumberRows("1") > 0) {
-                    sendSMS(buffer.getFirstRow("1"));
-                } else if (buffer.getNumberRows("4") > 0) { //hack for all received texts
+                if (buffer.getNumberRows("4") > 0) { //hack for all received texts
                     if (Utilities.isDeviceConnected(getApplicationContext())) {
                         try {
                             postTextData(buffer.getFirstRow("4"), transmitterId);
@@ -448,6 +444,10 @@ public class RainTransmitterService extends Service {
 
                         }
                     } //no need to send sms received texts (just to server)
+                } else if (buffer.getNumberRows("0") > 0) {
+                    sendSMS(buffer.getFirstRow("0"));
+                } else if (buffer.getNumberRows("1") > 0) {
+                    sendSMS(buffer.getFirstRow("1"));
                 } else if (buffer.getNumberRows("2") >= 18) {
                     //Where the data is being sent
                     //Check first if net is available
@@ -716,6 +716,15 @@ public class RainTransmitterService extends Service {
                     //Saving received messages to buffer with priority 1 for sending to server
                     buffer.insertRow(number, transmitterId + ";" + setupName() + ";" + body, "4");
 
+                    //Attempt to send immediately
+                    if (Utilities.isDeviceConnected(getApplicationContext())) {
+                        try {
+                            postTextData(buffer.getFirstRow("4"), transmitterId);
+                        } catch (JSONException e) {
+
+                        }
+                    } //no need to send sms received texts (just to server)
+
                     String[] data = body.split("-");
                     if (data.length <= 0) {
                         this.abortBroadcast();
@@ -805,7 +814,7 @@ public class RainTransmitterService extends Service {
                                         .getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE)
                                         .edit()
                                         .putFloat(Constants.THRESHOLD_KEY, newThreshold)
-                                        .apply();
+                                        .commit();
 
                                 threshold = getApplicationContext()
                                         .getSharedPreferences(Constants.SHARED_PREFS, Context.MODE_PRIVATE)
@@ -1025,11 +1034,16 @@ public class RainTransmitterService extends Service {
     }
 
     public void postTextData(String[] data, String tId) throws JSONException {
+        //data[0] - id
         //data[1] - phone number
-        //data[2] - message
+        //data[2] - message --> id;timestamp;body
+        //data[3] - priority
         final String id = data[0];
         final RequestParams params = new RequestParams();
-        params.put("transmitter", tId);
+
+        final String[] messages = data[2].split(";");
+        Log.d(TAG, "transmitterId: " + messages[0]);
+        params.put("transmitterId", messages[0]);
         params.put("phoneNumber", data[1]);
         params.put("message", data[2]);
         Handler asyncHttpPost = new Handler(Looper.getMainLooper());
