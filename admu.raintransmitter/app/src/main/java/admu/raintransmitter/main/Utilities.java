@@ -43,6 +43,22 @@ public class Utilities {
         return Math.round(d * Math.pow(10, places)) / Math.pow(10, places);
     }
 
+    public static boolean isInteger(String s) {
+        return isInteger(s,10);
+    }
+
+    private static boolean isInteger(String s, int radix) {
+        if(s.isEmpty()) return false;
+        for(int i = 0; i < s.length(); i++) {
+            if(i == 0 && s.charAt(i) == '-') {
+                if(s.length() == 1) return false;
+                else continue;
+            }
+            if(Character.digit(s.charAt(i),radix) < 0) return false;
+        }
+        return true;
+    }
+
     static int computeNumberOfSamplesPerText(double sampleRate, double bufferSize) {
         Log.d(TAG, "computeNumberOfSamplesPerText()" + sampleRate  + "," + bufferSize);
         double temp = 0.0;

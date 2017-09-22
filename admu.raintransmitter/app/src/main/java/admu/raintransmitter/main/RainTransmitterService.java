@@ -135,6 +135,8 @@ public class RainTransmitterService extends Service {
 
     private float threshold = 0.0f;
 
+    private boolean isServiceStarted = false;
+
     @Override
     public void onCreate() {
         super.onCreate();
@@ -259,6 +261,7 @@ public class RainTransmitterService extends Service {
      * @param row Buffer row: [0] id, [1] String number, [2] String message, [3] String priority
      */
     private void sendSMS(final String[] row) {
+        Log.d(TAG, "sendSMS: " + row[1] + " " + row[2]);
         String SENT = "SMS_SENT";
         PendingIntent sentPI = PendingIntent.getBroadcast(this, 0, new Intent(SENT), 0);
         //---when the SMS has been sent---
@@ -267,6 +270,7 @@ public class RainTransmitterService extends Service {
             public void onReceive(Context arg0, Intent arg1) {
                 switch (getResultCode()) {
                     case Activity.RESULT_OK:
+                        Log.d("EXTRA", "Deleting row: " + row[0] + ", prio: " + row[3]);
                         buffer.deleteRow(Integer.parseInt(row[0]));
                         break;
                 }
@@ -295,9 +299,8 @@ public class RainTransmitterService extends Service {
             public void onReceive(Context arg0, Intent arg1) {
                 switch (getResultCode()) {
                     case Activity.RESULT_OK:
-                        for (String[] sArr:
-                             fData) {
-                            Log.d("EXTRA", "Deleting row: " + sArr[0]);
+                        for (String[] sArr : fData) {
+                            Log.d("EXTRA", "Deleting row: " + sArr[0] + ", prio: " + sArr[3]);
                             buffer.deleteRow(Integer.parseInt(sArr[0]));
                         }
                         break;
@@ -436,15 +439,7 @@ public class RainTransmitterService extends Service {
             @Override
             public void run() {
                 // check if they are some sms to send
-                if (buffer.getNumberRows("4") > 0) { //hack for all received texts
-                    if (Utilities.isDeviceConnected(getApplicationContext())) {
-                        try {
-                            postTextData(buffer.getFirstRow("4"), transmitterId);
-                        } catch (JSONException e) {
-
-                        }
-                    } //no need to send sms received texts (just to server)
-                } else if (buffer.getNumberRows("0") > 0) {
+                if (buffer.getNumberRows("0") > 0) {
                     sendSMS(buffer.getFirstRow("0"));
                 } else if (buffer.getNumberRows("1") > 0) {
                     sendSMS(buffer.getFirstRow("1"));
@@ -455,12 +450,27 @@ public class RainTransmitterService extends Service {
                         try {
                             postRainData(buffer.getXNumberOfDataPoints(18));
                         } catch (JSONException e) {
-
+                            e.printStackTrace();
                         }
                     } else {
                         sendDataSMS(buffer.getXNumberOfDataPoints(18));
                     }
                 }
+
+                //TODO: Do i try and send this as text? this will only get deleted if successfully sent
+                if (buffer.getNumberRows("4") > 0 &&
+                        Utilities.isDeviceConnected(getApplicationContext())) { //hack for all received texts
+                    Log.d(TAG, "Getting: " + buffer.getNumberRows("4") + " rows of prio: 4");
+                    try {
+                        postTextData(buffer.getFirstRow("4"));
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+                    //no need to send sms received texts (just to server)
+                } else {
+                    Log.d(TAG, "No data connection or no prio 4 rows.");
+                }
+
                 // check battery
                 int bat = getBatteryLevel();
                 if (bat == 90) {
@@ -592,8 +602,8 @@ public class RainTransmitterService extends Service {
         threeHourTextIfRecordingTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                if (isRecording) {
-                    Log.d(TAG, "I'm still alive...");
+                if (isServiceStarted) {
+                    Log.d(TAG, "I'm still alive..., sending to: " + controllerNumber);
                     buffer.insertRow(controllerNumber, transmitterId + " here, I'm still alive don't worry.", "1");
                 }
             }
@@ -654,7 +664,7 @@ public class RainTransmitterService extends Service {
      * This doesn't really send anything, only saves to DB
      * TODO: Should send 18 data points
      * buffer receives the ff msg format: servernumber, msg (concatenated), priority (2)
-     * backup receives the ff msg format: # + SENSOR.NUM + sound[5] + signal[5] + distribution of sound[10]
+     * backup receives the ff msg format: # + SENSOR.NUM + sound[1]
      * @param soundLevel
      */
     //Problem here is that sometimes data comes in too fast and timestamps are duplicated
@@ -666,7 +676,7 @@ public class RainTransmitterService extends Service {
         msg += currentDataTimeStamp + ";";
         msg += ftRmsDb.format(soundLevel) + ";#";
 
-        Log.d("EXTRA", "Server,msg,priority" + serverReceiverNumber + "," + msg + ",2");
+        Log.d("EXTRA", "processAndSend(): Server,msg,priority: " + serverReceiverNumber + "," + msg + ",2");
         buffer.insertRow(serverReceiverNumber, msg, "2");
         backup.insertRow(msg);
     }
@@ -713,27 +723,26 @@ public class RainTransmitterService extends Service {
                     Log.i(TAG,"Received SMS: " + number + ":" + body);
                     Log.i(TAG,"Controller No." + controllerNumber);
 
-                    //Saving received messages to buffer with priority 1 for sending to server
-                    buffer.insertRow(number, transmitterId + ";" + setupName() + ";" + body, "4");
-
-                    //Attempt to send immediately
-                    if (Utilities.isDeviceConnected(getApplicationContext())) {
-                        try {
-                            postTextData(buffer.getFirstRow("4"), transmitterId);
-                        } catch (JSONException e) {
-
-                        }
-                    } //no need to send sms received texts (just to server)
-
                     String[] data = body.split("-");
                     if (data.length <= 0) {
                         this.abortBroadcast();
                     }
+
+                    //Saving received messages to buffer with priority 1 for sending to server (start truncates)
+                    //Prio 4 is received text messages
+                    if (!body.equals("start-gsm")) {
+                        buffer.insertRow(number, transmitterId + ";" + setupName() + ";" + body, "4");
+                    }
+
                     if (number.contains(controllerNumber) && data[0].toLowerCase().equals("start")) {
                         //TODO: Make sure multiple starts won't cause this to fail
                         if (!isWaitingToStart) {
-                            //TODO: Why truncate table?
+                            isServiceStarted = true;
+
+                            //TODO: Why truncate table?, so start GSM won't be saved from above, have to add hack
                             buffer.truncateTable();
+                            buffer.insertRow(number, transmitterId + ";" + setupName() + ";" + body, "4"); //hack
+
                             SimpleDateFormat ft = new SimpleDateFormat("HH:mm:ss", Locale.ENGLISH);
                             buffer.insertRow(controllerNumber, (transmitterId + " here, time is " + ft.format(new Date()) + ", started recording."), "1");
                             messageAnalysis(data);
@@ -745,6 +754,8 @@ public class RainTransmitterService extends Service {
                     if (number.contains(controllerNumber) && data[0].toLowerCase().equals("stop")) {
                         buffer.insertRow(controllerNumber, (transmitterId + " here, stopped recording."), "1");
                         Log.i(TAG, "Stopping..");
+
+                        isServiceStarted = false;
                         isRecording = false;
                         isWaitingToStart = false;
                         if (recorderThread != null)
@@ -1033,7 +1044,7 @@ public class RainTransmitterService extends Service {
         });
     }
 
-    public void postTextData(String[] data, String tId) throws JSONException {
+    public void postTextData(String[] data) throws JSONException {
         //data[0] - id
         //data[1] - phone number
         //data[2] - message --> id;timestamp;body
@@ -1042,7 +1053,6 @@ public class RainTransmitterService extends Service {
         final RequestParams params = new RequestParams();
 
         final String[] messages = data[2].split(";");
-        Log.d(TAG, "transmitterId: " + messages[0]);
         params.put("transmitterId", messages[0]);
         params.put("phoneNumber", data[1]);
         params.put("message", data[2]);
@@ -1058,7 +1068,7 @@ public class RainTransmitterService extends Service {
                         try {
                             String result = response.getString("result");
                             if (result.toLowerCase().equals("success")) {
-                                Log.d("EXTRA", "Deleting row: " + id);
+                                Log.d("EXTRA", "Deleting row: " + id + ", prio: 4");
                                 buffer.deleteRow(Integer.parseInt(id));
                             }
                         } catch (JSONException e) {

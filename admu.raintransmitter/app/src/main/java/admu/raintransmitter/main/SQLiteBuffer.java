@@ -92,8 +92,20 @@ public class SQLiteBuffer {
     }
 
     public void insertRow(String number, String message, String priority){
+        //Getting id of last row
+        String selectQuery = "SELECT * FROM sqlite_sequence WHERE name = 'buffer'";
+        Cursor c = db.rawQuery(selectQuery, null);
+        c.moveToLast();
+        //0 - name, 1 - id
+        //Might cause some problems if this is not long
+        String id = "non-int";
+        if(Utilities.isInteger(c.getString(1))) {
+            id = Long.toString(Long.parseLong(c.getString(1)) + 1); //id
+        }
+        c.close();
+
         ContentValues values = new ContentValues();
-        Log.d("EXTRA", "Insert: " + number + "," + message + "," + priority);
+        Log.d("EXTRA", "Inserting row: " + id + ", " + number + "," + message + ", " + priority);
         values.put(COLnumber, number);
         values.put(COLmessage, message);
         values.put(COLpriority, priority);
