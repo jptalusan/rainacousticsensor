@@ -37,11 +37,11 @@ if ($result = $mysqli->query($queryString))
 			$timeStamp = date("d/m/Y H:i:s", $seconds);
 			// set up a row for each record
 			echo "<tr>";
-			echo "<td>" . $row->transmitterId . "</td>";
+			echo "<td>" . $messageArray[0] . "</td>";
 			echo "<td>" . $timeStamp . "</td>";
 			echo "<td>" . $row->phoneNumber . "</td>";
-			echo "<td>" . $row->message . "</td>"; //Until changes are made to apk, use this first 
-			//echo "<td>" . $messageArray[2]. "</td>"; //use when apk have been updated
+			// echo "<td>" . $row->message . "</td>"; //Until changes are made to apk, use this first 
+			echo "<td>" . $messageArray[2]. "</td>"; //use when apk have been updated
 			echo "</tr>";
 		}
 		echo "</table>";
