@@ -4,7 +4,7 @@ http://rainsensor.excthackathon.x10host.com/
 Credentials:
 	site login:
 		email: jptalusan@gmail.com
-		password: br00dling!
+		password: b********!
 	
 	FTP:
 		host: rainsensor.excthackathon.x10host.com
@@ -14,12 +14,12 @@ Credentials:
 	
 		logon type: Normal
 		user: rainsensor@excthackathon.x10host.com
-		password: br00dling!
+		password: b********!
 
 	MySQL:
 		server: localhost
 		user: excthack_user
-		password: br00dling!
+		password: b********!
 		db: excthack_rainsensor
 			tables: RT1, RT2, RT3
 
